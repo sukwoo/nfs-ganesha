@@ -335,6 +335,7 @@ fsal_status_t FSAL_SetDefault_FS_specific_parameter(fsal_parameter_t * out_param
  *         ERR_FSAL_FAULT (null pointer given as parameter),
  */
 
+<<<<<<< HEAD
 /* load FSAL init info */
 
 fsal_status_t FSAL_load_FSAL_parameter_from_conf(config_file_t in_config,
@@ -648,6 +649,8 @@ fsal_status_t FSAL_load_FS_common_parameter_from_conf(config_file_t in_config,
 
 }                               /* FSAL_load_FS_common_parameter_from_conf */
 
+=======
+>>>>>>> Consolidate configuration setting methods into COMMON
 /* load specific filesystem configuration options */
 
 fsal_status_t FSAL_load_FS_specific_parameter_from_conf(config_file_t in_config,
