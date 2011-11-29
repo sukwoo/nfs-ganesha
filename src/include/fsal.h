@@ -41,6 +41,7 @@
 #include "config.h"
 #endif                          /* HAVE_CONFIG_H */
 
+#include "nlm_list.h"
 /* fsal_types contains constants and type definitions for FSAL */
 #include "fsal_types.h"
 #include "common_utils.h"
