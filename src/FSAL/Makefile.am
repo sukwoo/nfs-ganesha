@@ -10,6 +10,7 @@ libfsalcommon_la_SOURCES = fsal_strings.c          \
                            fsal_errors.c           \
                            fsal_convert.c          \
                            fsal_glue.c             \
+			   fsal_manager.c          \
 			   common_methods.c	   \
 			   access_check.c	   \
 			   common_functions.c      \
