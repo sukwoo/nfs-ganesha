@@ -60,6 +60,7 @@ nfs_start_info_t my_nfs_start_info = {
 };
 
 char *my_config_path = "/etc/ganesha/ganesha.conf";
+config_file_t config_struct;
 char log_path[MAXPATHLEN] = "";
 char exec_name[MAXPATHLEN] = "nfs-ganesha";
 char host_name[MAXHOSTNAMELEN] = "localhost";
@@ -110,14 +111,6 @@ int main(int argc, char *argv[])
   pid_t son_pid;
 #endif
   sigset_t signals_to_block;
-
-#ifdef _USE_SHARED_FSAL
-  int fsalid = -1 ;
-  unsigned int i = 0 ;
-  int nb_fsal = NB_AVAILABLE_FSAL ;
-  path_str_t fsal_path_param[NB_AVAILABLE_FSAL];
-  path_str_t fsal_path_lib;
-#endif
 
   /* retrieve executable file's name */
   strncpy(ganesha_exec_path, argv[0], MAXPATHLEN);
@@ -301,58 +294,22 @@ int main(int argc, char *argv[])
   /* Set the parameter to 0 before doing anything */
   memset((char *)&nfs_param, 0, sizeof(nfs_parameter_t));
 
-#ifdef _USE_SHARED_FSAL
-  nb_fsal = NB_AVAILABLE_FSAL ;
-  if(nfs_get_fsalpathlib_conf(config_path, fsal_path_param, &nb_fsal))
+  /* Parse the configuration file so we all know what is going on. */
+
+  if(config_path == NULL) {
+	  LogFatal(COMPONENT_INIT,
+		   "start_fsals: No configuration file named.");
+	  return 1;
+  }
+  config_struct = config_ParseFile(config_path);
+
+  if(!config_struct)
     {
-      LogMajor(COMPONENT_INIT,
-               "NFS MAIN: Error parsing configuration file for FSAL dynamic lib param.");
-      exit(1);
+      LogFatal(COMPONENT_INIT, "Error while parsing %s: %s",
+               config_path, config_GetErrorMsg());
     }
 
-  /* Keep track of the loaded FSALs */
-  nfs_param.nb_loaded_fsal = nb_fsal ;
-
-  for( i = 0 ; i < nb_fsal ; i++ )
-    {
-      if( FSAL_param_load_fsal_split( fsal_path_param[i], &fsalid, fsal_path_lib ) )
-        {
-          LogFatal(COMPONENT_INIT,
-                   "NFS MAIN: Error parsing configuration file for FSAL path.");
-          exit(1);
-        }
-
-      /* Keep track of the loaded FSALs */
-      nfs_param.loaded_fsal[i] = fsalid ;
-
-      LogEvent( COMPONENT_INIT,
-	        "Loading FSAL module for %s", FSAL_fsalid2name( fsalid ) ) ;
-   
-      /* Load the FSAL library (if needed) */
-      if(!FSAL_LoadLibrary(fsal_path_lib))
-       {
-         LogMajor(COMPONENT_INIT,
-	          "NFS MAIN: Could not load FSAL dynamic library %s", fsal_path_lib);
-         exit(1);
-        }
-
-     /* Set the FSAL id */
-     FSAL_SetId( fsalid ) ;
-
-     /* Get the FSAL functions */
-     FSAL_LoadFunctions();
-
-     /* Get the FSAL consts */
-     FSAL_LoadConsts();
-   } /* for */
-
-#else
-  /* Get the FSAL functions */
-  FSAL_LoadFunctions();
-
-  /* Get the FSAL consts */
-  FSAL_LoadConsts();
-#endif                          /* _USE_SHARED_FSAL */
+  start_fsals(config_struct);
 
   LogEvent(COMPONENT_MAIN,
            ">>>>>>>>>> Starting GANESHA NFS Daemon on FSAL/%s <<<<<<<<<<",
@@ -364,9 +321,9 @@ int main(int argc, char *argv[])
 
   /* parse configuration file */
 
-  if(nfs_set_param_from_conf(&my_nfs_start_info))
+  if(nfs_set_param_from_conf(config_struct, &my_nfs_start_info))
     {
-      LogFatal(COMPONENT_INIT, "Error parsing configuration file.");
+      LogFatal(COMPONENT_INIT, "Error setting parameters from configuration file.");
     }
 
   /* check parameters consitency */
@@ -375,6 +332,11 @@ int main(int argc, char *argv[])
     {
       LogFatal(COMPONENT_INIT,
 	       "Inconsistent parameters found. Exiting..." ) ;
+    }
+  if(init_fsals(config_struct))  /* init the FSALs from the config */
+    {
+      LogFatal(COMPONENT_INIT,
+	       "FSALs could not initialize. Exiting..." ) ;
     }
 
   /* Everything seems to be OK! We can now start service threads */
