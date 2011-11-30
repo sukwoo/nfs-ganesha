@@ -15,8 +15,9 @@ libfsalcommon_la_SOURCES = fsal_strings.c          \
 			   common_methods.c	   \
 			   access_check.c	   \
 			   common_functions.c      \
-			   ../include/FSAL/common_methods.h   \
-			   ../include/FSAL/access_check.h     \
+			   fsal_config.c	   \
+			   ../include/FSAL/common_methods.h \
+			   ../include/FSAL/access_check.h \
 			   ../include/FSAL/common_functions.h \
 			   ../include/FSAL/fsal_commonlib.h \
 			   ../include/FSAL/fsal_init.h \
