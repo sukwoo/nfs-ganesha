@@ -172,7 +172,7 @@ typedef struct exportlist__
                                      * The old (FALSE) is Access and Access_Type. */
 
   fsal_fsid_t filesystem_id;    /* fileset id         */
-  fsal_handle_t *proot_handle;  /* FSAL handle for the root of the file system */
+  struct fsal_obj_handle *proot_handle;  /* FSAL handle for the root of the file system */
 
   uid_t anonymous_uid;          /* root uid when no root access is available   */
                                 /* uid when access is available but all users are being squashed. */
@@ -197,7 +197,8 @@ typedef struct exportlist__
   unsigned int UseCookieVerifier;       /* Is Cookie verifier to be used ?                   */
   exportlist_client_t clients;  /* allowed clients                                   */
   struct exportlist__ *next;    /* next entry                                        */
-  unsigned int fsalid ;
+  unsigned int fsalid ;		/* deprecated USE_SHARED_FSAL */
+  struct fsal_export *export_hdl;	/* handle into our FSAL */
 
   cache_inode_policy_t cache_inode_policy ;
 
