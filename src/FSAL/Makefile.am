@@ -11,6 +11,7 @@ libfsalcommon_la_SOURCES = fsal_strings.c          \
 			   common_methods.c	   \
 			   access_check.c	   \
 			   common_functions.c      \
+			   legacy_ops.c		   \
 			   ../include/FSAL/common_methods.h \
 			   ../include/FSAL/access_check.h \
 			   ../include/FSAL/common_functions.h \
