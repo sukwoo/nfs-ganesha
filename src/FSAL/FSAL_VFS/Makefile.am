@@ -37,6 +37,7 @@ libfsalvfs_la_SOURCES = fsal_access.c    \
 			main.c		 \
 			export.c	 \
 			handle.c	 \
+			file.c		 \
 	                ../../include/fsal.h                     \
                         ../../include/fsal_types.h	         \
 	                ../../include/err_fsal.h	         \
