@@ -778,6 +778,27 @@ typedef fsal_ushort_t fsal_fhexptype_t;
         break;                                                    \
     }
 
+/* enums for accessing
+ * boolean fields of staticfsinfo
+ */
+
+typedef enum {
+	no_trunc,
+	chown_restricted,
+	case_insensitive,
+	case_preserving,
+	link_support,
+	symlink_support,
+	lock_support,
+	lock_support_owner,
+	lock_support_async_block,
+	named_attr,
+	unique_handles,
+	cansettime,
+	homogenous,
+	auth_exportpath_xdev
+} fsal_fsinfo_options_t;
+	
 struct fsal_staticfsinfo_t
 {
 
