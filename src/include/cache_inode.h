@@ -280,7 +280,7 @@ typedef struct cache_inode_internal_md__
 
 struct cache_inode_symlink__
 {
-  fsal_handle_t handle;                                   /**< The FSAL Handle     */
+  struct fsal_obj_handle *handle;                                   /**< The FSAL Handle     */
   fsal_attrib_list_t attributes;                          /**< The FSAL Attributes */
   fsal_path_t content;                                    /**< Content of the link */
 };
@@ -310,7 +310,7 @@ struct cache_entry_t
   {
     struct cache_inode_file__
     {
-      fsal_handle_t handle;                                          /**< The FSAL Handle                                      */
+      struct fsal_obj_handle *handle;                                          /**< The FSAL Handle                                      */
 #ifdef _USE_PNFS_SPNFS_LIKE
       fsal_pnfs_file_t pnfs_file ;                                   /**< Specific FS information for pNFS management          */
 #endif
@@ -331,7 +331,7 @@ struct cache_entry_t
 
     struct cache_inode_dir__
     {
-      fsal_handle_t handle;                     /**< The FSAL Handle                                         */
+      struct fsal_obj_handle *handle;                     /**< The FSAL Handle                                         */
       fsal_attrib_list_t attributes;            /**< The FSAL Attributes                                     */
       unsigned int nbactive;                    /**< Number of known active children                         */
       cache_inode_flag_t has_been_readdir;      /**< True if a full readdir was performed on the directory   */
@@ -342,7 +342,7 @@ struct cache_entry_t
 
     struct cache_inode_special_object__
     {
-      fsal_handle_t handle;                     /**< The FSAL Handle                                         */
+      struct fsal_obj_handle *handle;                     /**< The FSAL Handle                                         */
       fsal_attrib_list_t attributes;            /**< The FSAL Attributes                                     */
       /* Note that special data is in the rawdev field of FSAL attributes */
     } special_obj;
@@ -375,7 +375,7 @@ typedef struct cache_inode_parent_entry__ cache_inode_parent_entry_t;
 
 typedef struct cache_inode_fsal_data__
 {
-  fsal_handle_t handle;                         /**< FSAL handle           */
+  struct fsal_obj_handle *handle;                         /**< FSAL handle           */
   uint64_t cookie;                              /**< Cache inode cookie    */
 } cache_inode_fsal_data_t;
 
@@ -905,7 +905,7 @@ void cache_inode_mutex_destroy(cache_entry_t * pentry);
 
 void cache_inode_print_dir(cache_entry_t * cache_entry_root);
 
-fsal_handle_t *cache_inode_get_fsal_handle(cache_entry_t * pentry,
+struct fsal_obj_handle *cache_inode_get_fsal_handle(cache_entry_t * pentry,
                                            cache_inode_status_t * pstatus);
 
 cache_inode_status_t cache_inode_statfs(cache_entry_t * pentry,
@@ -941,7 +941,7 @@ cache_inode_status_t cache_inode_kill_entry( cache_entry_t * pentry,
                                              cache_inode_client_t * pclient,
                                              cache_inode_status_t * pstatus);
 
-cache_inode_status_t cache_inode_invalidate( fsal_handle_t        * pfsal_handle,
+cache_inode_status_t cache_inode_invalidate( struct fsal_obj_handle * pfsal_handle,
                                              fsal_attrib_list_t   * pattr,
                                              hash_table_t         * ht,
                                              cache_inode_client_t * pclient,
