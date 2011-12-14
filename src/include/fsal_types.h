@@ -646,7 +646,7 @@ typedef fsal_uint_t fsal_accessflags_t;
 typedef struct fsal_dirent__
 {
 
-  fsal_handle_t handle;             /**< directory entry handle. */
+  struct fsal_obj_handle *handle;   /**< directory entry handle. */
   fsal_name_t name;                 /**< directory entry name.   */
   fsal_cookie_t cookie;             /**< cookie for reading dir
                                          from this entry         */
