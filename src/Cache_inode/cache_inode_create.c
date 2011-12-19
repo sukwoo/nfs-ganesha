@@ -98,13 +98,14 @@ cache_inode_create(cache_entry_t * pentry_parent,
     mfsl_object_t object_handle;
     fsal_attrib_list_t parent_attributes;
 #else
-    fsal_handle_t object_handle;
+    struct fsal_obj_handle *object_handle;
 #endif
     fsal_attrib_list_t object_attributes;
-    fsal_handle_t dir_handle;
+    struct fsal_obj_handle *dir_handle;
     cache_inode_fsal_data_t fsal_data;
     cache_inode_status_t status;
     struct cache_inode_dir__ *pdir = NULL;
+    fsal_accessflags_t access_mask = 0;
 #ifdef _USE_PNFS
 
 #ifdef _USE_PNFS_SPNFS_LIKE  /** @todo : do the thing in a cleaner way here */
@@ -114,9 +115,6 @@ cache_inode_create(cache_entry_t * pentry_parent,
 #endif
 
     memset( ( char *)&fsal_data, 0, sizeof( fsal_data ) ) ;
-    memset( ( char *)&object_handle, 0, sizeof( object_handle ) ) ;
-
-    fsal_accessflags_t access_mask = 0;
 
     /* Set the return default to CACHE_INODE_SUCCESS */
     *pstatus = CACHE_INODE_SUCCESS;
@@ -200,7 +198,12 @@ cache_inode_create(cache_entry_t * pentry_parent,
     P_w(&pentry_parent->lock);
     pdir = &pentry_parent->object.dir;   
     dir_handle = pdir->handle;
+/* we pass in attributes to the create.  We will get them back below */
     object_attributes.asked_attributes = pclient->attrmask;
+    object_attributes.owner = pcontext->credential.user;
+    object_attributes.group = pcontext->credential.group; /* be more selective? */
+    object_attributes.mode = mode;
+
     switch (type)
         {
         case REGULAR_FILE:
@@ -217,9 +220,10 @@ cache_inode_create(cache_entry_t * pentry_parent,
                                       NULL);
 #endif /* _USE_PNFS */
 #else
-            fsal_status = FSAL_create(&dir_handle,
-                                      pname, pcontext, mode,
-                                      &object_handle, &object_attributes);
+            fsal_status = dir_handle->ops->create(dir_handle,
+						  pname,
+						  &object_attributes,
+						  &object_handle);
 #endif
             break;
 
@@ -232,9 +236,10 @@ cache_inode_create(cache_entry_t * pentry_parent,
                                      mode, &object_handle,
                                      &object_attributes, &parent_attributes, NULL);
 #else
-            fsal_status = FSAL_mkdir(&dir_handle,
-                                     pname, pcontext, mode,
-                                     &object_handle, &object_attributes);
+            fsal_status = dir_handle->ops->mkdir(dir_handle,
+						 pname,
+						 &object_attributes,
+						 &object_handle);
 #endif
             break;
 
@@ -246,10 +251,11 @@ cache_inode_create(cache_entry_t * pentry_parent,
                                        pcontext, &pclient->mfsl_context,
                                        mode, &object_handle, &object_attributes, NULL);
 #else
-            fsal_status = FSAL_symlink(&dir_handle,
-                                       pname, &pcreate_arg->link_content,
-                                       pcontext, mode, &object_handle,
-                                       &object_attributes);
+            fsal_status = dir_handle->ops->symlink(dir_handle,
+						   pname,
+						   &pcreate_arg->link_content,
+						   &object_attributes,
+						   &object_handle);
 #endif
             break;
 
@@ -260,9 +266,12 @@ cache_inode_create(cache_entry_t * pentry_parent,
                                       FSAL_TYPE_SOCK, NULL, /* no dev_t needed for socket file */
                                       &object_handle, &object_attributes, NULL);
 #else
-            fsal_status = FSAL_mknode(&dir_handle, pname, pcontext,
-                                      mode, FSAL_TYPE_SOCK, NULL, /* no dev_t needed for socket file */
-                                      &object_handle, &object_attributes);
+            fsal_status = dir_handle->ops->mknode(dir_handle,
+						  pname,
+						  FSAL_TYPE_SOCK,
+						  NULL, /* no dev_t needed for socket file */
+						  &object_attributes,
+						  &object_handle);
 #endif
             break;
 
@@ -273,9 +282,12 @@ cache_inode_create(cache_entry_t * pentry_parent,
                                       mode, FSAL_TYPE_FIFO, NULL, /* no dev_t needed for FIFO file */
                                       &object_handle, &object_attributes, NULL);
 #else
-            fsal_status = FSAL_mknode(&dir_handle, pname, pcontext,
-                                      mode, FSAL_TYPE_FIFO, NULL, /* no dev_t needed for FIFO file */
-                                      &object_handle, &object_attributes);
+            fsal_status = dir_handle->ops->mknode(dir_handle,
+						  pname,
+						  FSAL_TYPE_FIFO,
+						  NULL, /* no dev_t needed for socket file */
+						  &object_attributes,
+						  &object_handle);
 #endif
             break;
 
@@ -288,11 +300,12 @@ cache_inode_create(cache_entry_t * pentry_parent,
                                       &pcreate_arg->dev_spec,
                                       &object_handle, &object_attributes, NULL);
 #else
-            fsal_status = FSAL_mknode(&dir_handle,
-                                      pname, pcontext,
-                                      mode, FSAL_TYPE_BLK,
-                                      &pcreate_arg->dev_spec,
-                                      &object_handle, &object_attributes);
+            fsal_status = dir_handle->ops->mknode(dir_handle,
+						  pname,
+						  FSAL_TYPE_BLK,
+						  &pcreate_arg->dev_spec,
+						  &object_attributes,
+						  &object_handle);
 #endif
             break;
 
@@ -305,11 +318,12 @@ cache_inode_create(cache_entry_t * pentry_parent,
                                       &pcreate_arg->dev_spec,
                                       &object_handle, &object_attributes, NULL);
 #else
-            fsal_status = FSAL_mknode(&dir_handle,
-                                      pname, pcontext,
-                                      mode, FSAL_TYPE_CHR,
-                                      &pcreate_arg->dev_spec,
-                                      &object_handle, &object_attributes);
+            fsal_status = dir_handle->ops->mknode(dir_handle,
+						  pname,
+						  FSAL_TYPE_CHR,
+						  &pcreate_arg->dev_spec,
+						  &object_attributes,
+						  &object_handle);
 #endif
             break;
 
@@ -324,6 +338,9 @@ cache_inode_create(cache_entry_t * pentry_parent,
             return NULL;
             break;
         }
+    if( !FSAL_IS_ERROR(fsal_status))
+	    fsal_status = object_handle->ops->getattrs(object_handle,
+						       &object_attributes);
 
     /* Check for the result */
     if(FSAL_IS_ERROR(fsal_status))
@@ -413,7 +430,8 @@ cache_inode_create(cache_entry_t * pentry_parent,
        pdir->attributes.mtime.seconds = time(NULL);
        pdir->attributes.mtime.nseconds = 0;
        pdir->attributes.ctime = pdir->attributes.mtime;
-       /*
+       /*    memset( ( char *)&object_handle, 0, sizeof( object_handle ) ) ;
+
         * if the created object is a directory, it contains a link
         * to its parent : '..'. Thus the numlink attr must be increased.
         */
