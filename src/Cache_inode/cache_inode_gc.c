@@ -87,7 +87,7 @@ static void cache_inode_gc_acl(cache_entry_t * pentry);
 static int cache_inode_gc_clean_entry(cache_entry_t * pentry,
                                       cache_inode_param_gc_t * pgcparam)
 {
-  fsal_handle_t *pfsal_handle = NULL;
+  struct fsal_obj_handle *pfsal_handle = NULL;
   cache_inode_parent_entry_t *parent_iter = NULL;
   cache_inode_parent_entry_t *parent_iter_next = NULL;
   cache_inode_fsal_data_t fsaldata;
@@ -117,7 +117,7 @@ static int cache_inode_gc_clean_entry(cache_entry_t * pentry,
       return LRU_LIST_DO_NOT_SET_INVALID;
     }
 
-  fsaldata.handle = *pfsal_handle;
+  fsaldata.handle = pfsal_handle;
   fsaldata.cookie = DIR_START;
 
   /* Use the handle to build the key */
@@ -207,6 +207,9 @@ static int cache_inode_gc_clean_entry(cache_entry_t * pentry,
 
   /* Free and Destroy the mutex associated with the pentry */
   V_w(&pentry->lock);
+
+  /* return the obj handle. figure out get/put.  I'd rather a better deref here */
+  pfsal_handle->ops->release(pfsal_handle);
 
   cache_inode_mutex_destroy(pentry);
 
