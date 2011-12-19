@@ -1502,7 +1502,8 @@ int nfs4_op_lookup_pseudo(struct nfs_argop4 *op,
   fsal_path_t exportpath_fsal;
   char pathfsal[MAXPATHLEN] ;
   fsal_attrib_list_t attr;
-  fsal_handle_t fsal_handle;
+  struct fsal_export *exp_hdl;
+  struct fsal_obj_handle *fsal_handle;
 #ifdef _USE_MFSL
   mfsl_object_t mobject;
 #endif
@@ -1602,8 +1603,9 @@ int nfs4_op_lookup_pseudo(struct nfs_argop4 *op,
                                                      &data->pclient->mfsl_context,
                                                      &mobject, NULL)))
 #else
-      if(FSAL_IS_ERROR(fsal_status = FSAL_lookupPath(&exportpath_fsal,
-                                                     data->pcontext, &fsal_handle, NULL)))
+      exp_hdl = psfsentry.junction_export->export_hdl;
+      fsal_status = exp_hdl->ops->lookup_path(exp_hdl, &exportpath_fsal, &fsal_handle);
+      if(FSAL_IS_ERROR(fsal_status))
 #endif
         {
 	  LogMajor(COMPONENT_NFS_V4_PSEUDO,
@@ -1642,7 +1644,7 @@ int nfs4_op_lookup_pseudo(struct nfs_argop4 *op,
         }
 
       /* Build the nfs4 handle */
-      if(!nfs4_FSALToFhandle(&data->currentFH, &fsal_handle, data))
+      if(!nfs4_FSALToFhandle(&data->currentFH, fsal_handle, data))
         {
           LogMajor(COMPONENT_NFS_V4_PSEUDO,
                    "PSEUDO FS JUNCTION TRAVERSAL: /!\\ | Failed to build the first file handle");
@@ -1662,7 +1664,7 @@ int nfs4_op_lookup_pseudo(struct nfs_argop4 *op,
                                          data->pexport->cache_inode_policy,
                                          data->ht,
                                          ((cache_inode_client_t *) data->pclient),
-                                         data->pcontext, &cache_status)) == NULL)
+                                         &cache_status)) == NULL)
         {
           LogMajor(COMPONENT_NFS_V4_PSEUDO,
                    "PSEUDO FS JUNCTION TRAVERSAL: /!\\ | Allocate root entry in cache inode failed, for %s, id=%d",
@@ -1676,7 +1678,7 @@ int nfs4_op_lookup_pseudo(struct nfs_argop4 *op,
                              &attr,
                              data->ht,
                              ((cache_inode_client_t *) data->pclient),
-                             data->pcontext, &cache_status) != CACHE_INODE_SUCCESS)
+                             &cache_status) != CACHE_INODE_SUCCESS)
         {
           LogMajor(COMPONENT_NFS_V4_PSEUDO,
                    "PSEUDO FS JUNCTION TRAVERSAL: /!\\ | Failed to get attributes for root pentry");
@@ -1789,7 +1791,8 @@ int nfs4_op_readdir_pseudo(struct nfs_argop4 *op,
   cache_inode_fsal_data_t fsdata;
   fsal_path_t exportpath_fsal;
   fsal_attrib_list_t attr;
-  fsal_handle_t fsal_handle;
+  struct fsal_export *exp_hdl;
+  struct fsal_obj_handle *fsal_handle;
 #ifdef _USE_MFSL
   mfsl_object_t mobject;
 #endif
@@ -1877,8 +1880,9 @@ int nfs4_op_readdir_pseudo(struct nfs_argop4 *op,
                                                      &data->pclient->mfsl_context,
                                                      &mobject, NULL)))
 #else
-      if(FSAL_IS_ERROR(fsal_status = FSAL_lookupPath(&exportpath_fsal,
-                                                     data->pcontext, &fsal_handle, NULL)))
+      exp_hdl = psfsentry.junction_export->export_hdl;
+      fsal_status = exp_hdl->ops->lookup_path(exp_hdl, &exportpath_fsal, &fsal_handle);
+      if(FSAL_IS_ERROR(fsal_status))
 #endif
         {
           LogMajor(COMPONENT_NFS_V4_PSEUDO,
@@ -1917,7 +1921,7 @@ int nfs4_op_readdir_pseudo(struct nfs_argop4 *op,
         }
 
       /* Build the nfs4 handle */
-      if(!nfs4_FSALToFhandle(&data->currentFH, &fsal_handle, data))
+      if(!nfs4_FSALToFhandle(&data->currentFH, fsal_handle, data))
         {
           LogMajor(COMPONENT_NFS_V4_PSEUDO,
                    "PSEUDO FS JUNCTION TRAVERSAL: /!\\ | Failed to build the first file handle");
