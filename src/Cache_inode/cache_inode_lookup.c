@@ -101,9 +101,9 @@ cache_entry_t *cache_inode_lookup_sw(cache_entry_t        * pentry_parent,
 #ifdef _USE_MFSL
   mfsl_object_t object_handle;
 #else
-  fsal_handle_t object_handle;
+  struct fsal_obj_handle *object_handle;
 #endif
-  fsal_handle_t dir_handle;
+  struct fsal_obj_handle *dir_handle;
   fsal_attrib_list_t object_attributes;
   cache_inode_create_arg_t create_arg;
   cache_inode_file_type_t type;
@@ -245,8 +245,7 @@ cache_entry_t *cache_inode_lookup_sw(cache_entry_t        * pentry_parent,
 
 #else
           fsal_status =
-              FSAL_lookup(&dir_handle, pname, pcontext, &object_handle,
-                          &object_attributes);
+		  dir_handle->export->ops->lookup(dir_handle->export, dir_handle, pname, &object_handle);
 #endif                          /* _USE_MFSL */
 
           if(FSAL_IS_ERROR(fsal_status))
@@ -280,6 +279,13 @@ cache_entry_t *cache_inode_lookup_sw(cache_entry_t        * pentry_parent,
               return NULL;
             }
 
+	  fsal_status = object_handle->ops->getattrs(object_handle, &object_attributes);
+          if(FSAL_IS_ERROR(fsal_status))
+            {
+/* FIXME: put back the handle. do error checking
+ */
+              return NULL;
+            }
           type = cache_inode_fsal_type_convert(object_attributes.type);
 
           /* If entry is a symlink, this value for be cached */
