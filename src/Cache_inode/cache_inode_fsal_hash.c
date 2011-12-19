@@ -109,7 +109,12 @@ unsigned long cache_inode_fsal_rbt_func(hash_parameter_t * p_hparam,
 
     cache_inode_fsal_data_t *pfsdata = (cache_inode_fsal_data_t *) (buffclef->pdata);
 
+#if 0
+/* FIXME: this function only referenced by tests and cmdline tools
+ * this line accesses internals of deprecated fsal_handle_t
+ */
     h = Lookup3_hash_buff((char *)(&pfsdata->handle.data), sizeof(pfsdata->handle.data ) );
+#endif
 
     if(isFullDebug(COMPONENT_HASHTABLE))
         {
@@ -169,22 +174,19 @@ unsigned int cache_inode_fsal_rbt_both_on_fsal( hash_parameter_t * p_hparam,
 
     cache_inode_fsal_data_t *pfsdata = (cache_inode_fsal_data_t *) (buffclef->pdata);
 
-    rc = FSAL_Handle_to_Hash_both( &pfsdata->handle, pfsdata->cookie,
-				   p_hparam->alphabet_length, p_hparam->index_size,
-				   phashval, prbtval ) ;
-
-    if( rc == 0 )
-      {
-          snprintHandle(printbuf, 512, &pfsdata->handle);
-          LogMajor(COMPONENT_HASHTABLE,
-                   "Unable to hash (Handle=%s, Cookie=%"PRIu64")",
-                   printbuf, pfsdata->cookie);
-          return 0 ;
-      }
+    *phashval = pfsdata->handle->ops->handle_to_hashidx(pfsdata->handle,
+							pfsdata->cookie,
+							p_hparam->alphabet_length,
+							p_hparam->index_size);
+    *prbtval = pfsdata->handle->ops->handle_to_rbtidx(pfsdata->handle,
+						      pfsdata->cookie);
 
     if(isFullDebug(COMPONENT_HASHTABLE))
       {
-          snprintHandle(printbuf, 512, &pfsdata->handle);
+	  unsigned char buf[FSAL_DIGEST_SIZE_HDLV4];
+
+          pfsdata->handle->ops->handle_digest(pfsdata->handle, FSAL_DIGEST_NFSV4, &buf);
+          snprintHandle(printbuf, 512, buf);
           LogFullDebug(COMPONENT_HASHTABLE,
                        "hash_func rbt both: buff = (Handle=%s, Cookie=%"PRIu64"), hashvalue=%u rbtvalue=%u",
                        printbuf, pfsdata->cookie, *phashval, *prbtval );
@@ -199,12 +201,13 @@ unsigned int cache_inode_fsal_rbt_both_locally( hash_parameter_t * p_hparam,
 				              uint32_t * phashval, uint32_t * prbtval )
 {
     char printbuf[512];
+    unsigned char buf[FSAL_DIGEST_SIZE_HDLV4];
     uint32_t h1 = 0 ;
     uint32_t h2 = 0 ;
 
     cache_inode_fsal_data_t *pfsdata = (cache_inode_fsal_data_t *) (buffclef->pdata);
-
-    Lookup3_hash_buff_dual((char *)(&pfsdata->handle.data), sizeof(pfsdata->handle.data),
+    pfsdata->handle->ops->handle_digest(pfsdata->handle, FSAL_DIGEST_NFSV4, &buf);
+    Lookup3_hash_buff_dual(buf, FSAL_DIGEST_SIZE_HDLV4,
                            &h1, &h2  );
 
     h1 = h1 % p_hparam->index_size ;
@@ -214,7 +217,7 @@ unsigned int cache_inode_fsal_rbt_both_locally( hash_parameter_t * p_hparam,
 
     if(isFullDebug(COMPONENT_HASHTABLE))
         {
-            snprintHandle(printbuf, 512, &pfsdata->handle);
+            snprintHandle(printbuf, 512, buf);
             LogFullDebug(COMPONENT_HASHTABLE,
                          "hash_func rbt both: buff = (Handle=%s, Cookie=%"PRIu64"), hashvalue=%u rbtvalue=%u",
                          printbuf, pfsdata->cookie, h1, h2 );
@@ -240,11 +243,13 @@ unsigned int cache_inode_fsal_rbt_both( hash_parameter_t * p_hparam,
 int display_key(hash_buffer_t * pbuff, char *str)
 {
     cache_inode_fsal_data_t *pfsdata;
+    unsigned char buf[FSAL_DIGEST_SIZE_HDLV4];
     char buffer[128];
 
     pfsdata = (cache_inode_fsal_data_t *) pbuff->pdata;
+    pfsdata->handle->ops->handle_digest(pfsdata->handle, FSAL_DIGEST_NFSV4, &buf);
 
-    snprintHandle(buffer, 128, &(pfsdata->handle));
+    snprintHandle(buffer, 128, buf);
 
     return snprintf(str, HASHTABLE_DISPLAY_STRLEN,
                     "(Handle=%s, Cookie=%"PRIu64")", buffer,
