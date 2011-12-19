@@ -739,7 +739,12 @@ if(FSAL_IS_ERROR(status = FSAL_str2path("/tmp", FSAL_MAX_PATH_LEN, &pathroot)))
   context->client.pcontent_client = (caddr_t) & context->dc_client;
 
   fsdata.cookie = 0;
+#if 0
+/* FIXME: passing pointer, not struct copy in new api.
+ * sort out later
+ */
   fsdata.handle = root_handle;
+#endif
 
   if((context->pentry = cache_inode_make_root(&fsdata,
                                               cachepol,
@@ -860,7 +865,7 @@ int fn_Cache_inode_pwd(int argc,        /* IN : number of args in argv */
                        char **argv,     /* IN : arg list               */
                        FILE * output)   /* IN : output stream          */
 {
-  fsal_handle_t *pfsal_handle = NULL;
+  struct fsal_obj_handle *pfsal_handle = NULL;
   char buff[128];
 
   cmdCacheInode_thr_info_t *context;
@@ -4762,7 +4767,7 @@ int fn_Cache_inode_invalidate(int argc,      /* IN : number of args in argv */
   cmdCacheInode_thr_info_t *context;
 
   fsal_attrib_list_t attr ;
-  fsal_handle_t * pfsal_handle = NULL ;
+  struct fsal_obj_handle * pfsal_handle = NULL ;
 
   /* is the fs initialized ? */
   if(!cache_init)
