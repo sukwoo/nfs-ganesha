@@ -414,7 +414,7 @@ cache_entry_t *cache_inode_new_entry(cache_inode_fsal_data_t   * pfsdata,
   if(pfsal_attr == NULL)
     {
        fsal_attributes.asked_attributes = pclient->attrmask;
-       fsal_status = FSAL_getattrs(&pfsdata->handle, pcontext, &fsal_attributes);
+       fsal_status = pfsdata->handle->ops->getattrs(pfsdata->handle, &fsal_attributes);
 
        if(FSAL_IS_ERROR(fsal_status))
          {
@@ -1366,10 +1366,10 @@ cache_inode_file_type_t cache_inode_fsal_type_convert(fsal_nodetype_t type)
  * @return the result of the conversion. NULL shows an error.
  *
  */
-fsal_handle_t *cache_inode_get_fsal_handle(cache_entry_t * pentry,
+struct fsal_obj_handle *cache_inode_get_fsal_handle(cache_entry_t * pentry,
                                            cache_inode_status_t * pstatus)
 {
-  fsal_handle_t *preturned_handle = NULL;
+  struct fsal_obj_handle *preturned_handle = NULL;
 
   /* Set the return default to CACHE_INODE_SUCCESS */
   *pstatus = CACHE_INODE_SUCCESS;
@@ -1384,18 +1384,18 @@ fsal_handle_t *cache_inode_get_fsal_handle(cache_entry_t * pentry,
       switch (pentry->internal_md.type)
         {
         case REGULAR_FILE:
-          preturned_handle = &pentry->object.file.handle;
+          preturned_handle = pentry->object.file.handle;
           *pstatus = CACHE_INODE_SUCCESS;
           break;
 
         case SYMBOLIC_LINK:
           assert(pentry->object.symlink);
-          preturned_handle = &pentry->object.symlink->handle;
+          preturned_handle = pentry->object.symlink->handle;
           *pstatus = CACHE_INODE_SUCCESS;
           break;
 
         case DIRECTORY:
-          preturned_handle = &pentry->object.dir.handle;
+          preturned_handle = pentry->object.dir.handle;
           *pstatus = CACHE_INODE_SUCCESS;
           break;
 
@@ -1403,7 +1403,7 @@ fsal_handle_t *cache_inode_get_fsal_handle(cache_entry_t * pentry,
         case FIFO_FILE:
         case BLOCK_FILE:
         case CHARACTER_FILE:
-          preturned_handle = &pentry->object.special_obj.handle;
+          preturned_handle = pentry->object.special_obj.handle;
           break;
 
         default:
