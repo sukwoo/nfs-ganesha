@@ -88,8 +88,8 @@ cache_inode_status_t cache_inode_link(cache_entry_t * pentry_src,
                                       cache_inode_status_t * pstatus)
 {
   fsal_status_t fsal_status;
-  fsal_handle_t handle_src;
-  fsal_handle_t handle_dest;
+  struct fsal_obj_handle *handle_src;
+  struct fsal_obj_handle *handle_dest;
   fsal_attrib_list_t link_attributes;
   cache_inode_dir_entry_t *new_dir_entry;
 #ifdef _USE_MFSL
@@ -251,6 +251,7 @@ cache_inode_status_t cache_inode_link(cache_entry_t * pentry_src,
                 &pclient->mfsl_context, &link_attributes, NULL);
 #else
   fsal_status =
+/* access test first */
       FSAL_link(&handle_src, &handle_dest, plink_name, pcontext, &link_attributes);
 #endif
   if(FSAL_IS_ERROR(fsal_status))
