@@ -209,8 +209,8 @@ int mnt_Mnt(nfs_arg_t * parg /* IN      */ ,
   /*
    * retrieve the associated NFS handle
    */
-
-  pfsal_handle = *p_current_item->proot_handle;
+/* FIXME - comment outfor build only */
+/*   pfsal_handle = *p_current_item->proot_handle; */
   if(!(bytag == TRUE || !strncmp(tmpexport_path, tmplist_path, MAXPATHLEN)))
     {
       if(FSAL_IS_ERROR(FSAL_str2path(tmpexport_path, MAXPATHLEN, &fsal_path)))
