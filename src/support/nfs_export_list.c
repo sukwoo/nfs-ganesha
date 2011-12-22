@@ -126,6 +126,13 @@ const char *Rpc_gss_svc_name[] =
  * @return the pointer to the pointer to the export list or NULL if failed.
  *
  */
+/* FIXME: Exports should really be managed as an object...  exportroot should
+ * be a static in this module and the only thing that leaks out to the rest of
+ * the code is entries that are created here and searched for here.
+ * this means that the exportroot arg here will disappear at some point,
+ * probably when exportlist_t is overhauled to use nlm_list etc.
+ */
+
 exportlist_t *nfs_Get_export_by_id(exportlist_t * exportroot, unsigned short exportid)
 {
   exportlist_t *piter;

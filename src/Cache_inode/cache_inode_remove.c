@@ -98,7 +98,7 @@ cache_inode_status_t cache_inode_clean_internal(cache_entry_t * to_remove_entry,
                                                 hash_table_t * ht,
                                                 cache_inode_client_t * pclient)
 {
-  fsal_handle_t *pfsal_handle_remove;
+  struct fsal_obj_handle *pfsal_handle_remove;
   cache_inode_parent_entry_t *parent_iter = NULL;
   cache_inode_parent_entry_t *parent_iter_next = NULL;
   cache_inode_fsal_data_t fsaldata;
@@ -125,7 +125,7 @@ cache_inode_status_t cache_inode_clean_internal(cache_entry_t * to_remove_entry,
     }
 
   /* delete the entry from the cache */
-  fsaldata.handle = *pfsal_handle_remove;
+  fsaldata.handle = pfsal_handle_remove;
 
   /* XXX always DIR_START */
   fsaldata.cookie = DIR_START;
@@ -211,7 +211,7 @@ cache_inode_status_t cache_inode_remove_sw(cache_entry_t * pentry,             /
 {
   fsal_status_t fsal_status;
   cache_entry_t *to_remove_entry;
-  fsal_handle_t fsal_handle_parent;
+  struct fsal_obj_handle *fsal_handle_parent;
   fsal_attrib_list_t remove_attr;
   fsal_attrib_list_t after_attr;
   cache_inode_status_t status;

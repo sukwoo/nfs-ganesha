@@ -388,13 +388,6 @@ typedef struct nfs_param__
   hash_parameter_t nlm_owner_hash_param;
 #endif
   nfs_cache_layers_parameter_t cache_layers_param;
-#ifdef _USE_SHARED_FSAL
-  unsigned int nb_loaded_fsal ;
-  unsigned int loaded_fsal[NB_AVAILABLE_FSAL];
-  fsal_parameter_t fsal_param[NB_AVAILABLE_FSAL];
-#else
-  fsal_parameter_t fsal_param;
-#endif
   external_tools_parameter_t extern_param;
 
   /* list of exports declared in config file */
@@ -652,6 +645,8 @@ void constructor_nfs_request_data_t(void *ptr);
 void constructor_request_data_t(void *ptr);
 
 /* Config parsing routines */
+extern config_file_t config_struct;
+
 int get_stat_exporter_conf(config_file_t in_config, external_tools_parameter_t * out_parameter);
 int nfs_read_core_conf(config_file_t in_config, nfs_core_parameter_t * pparam);
 int nfs_read_worker_conf(config_file_t in_config, nfs_worker_parameter_t * pparam);

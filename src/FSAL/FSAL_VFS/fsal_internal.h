@@ -34,6 +34,7 @@
 
 #include "fsal.h"
 #include <sys/stat.h>
+#include "FSAL/common_functions.h"
 
 /* defined the set of attributes supported with POSIX */
 #define VFS_SUPPORTED_ATTRIBUTES (                                       \
@@ -59,13 +60,6 @@ extern char open_by_handle_path[MAXPATHLEN];
 extern int open_by_handle_fd;
 
 #endif
-
-/**
- *  This function initializes shared variables of the FSAL.
- */
-fsal_status_t fsal_internal_init_global(fsal_init_info_t * fsal_info,
-                                        fs_common_initinfo_t * fs_common_info,
-                                        fs_specific_initinfo_t * fs_specific_info);
 
 /**
  *  Increments the number of calls for a function.
@@ -307,18 +301,8 @@ fsal_status_t VFSFSAL_ExpandHandle(fsal_export_context_t * p_expcontext,     /* 
                                    caddr_t in_buff,     /* IN */
                                    fsal_handle_t * p_out_fsal_handle /* OUT */ );
 
-fsal_status_t VFSFSAL_SetDefault_FSAL_parameter(fsal_parameter_t * out_parameter);
-
-fsal_status_t VFSFSAL_SetDefault_FS_common_parameter(fsal_parameter_t * out_parameter);
-
 fsal_status_t VFSFSAL_SetDefault_FS_specific_parameter(fsal_parameter_t * out_parameter);
 
-fsal_status_t VFSFSAL_load_FSAL_parameter_from_conf(config_file_t in_config,
-                                                    fsal_parameter_t * out_parameter);
-
-fsal_status_t VFSFSAL_load_FS_common_parameter_from_conf(config_file_t in_config,
-                                                         fsal_parameter_t *
-                                                         out_parameter);
 
 fsal_status_t VFSFSAL_load_FS_specific_parameter_from_conf(config_file_t in_config,
                                                            fsal_parameter_t *

@@ -483,7 +483,13 @@ int fsal_init(char *filename, int flag_v, FILE * output)
   /* Initializes the FSAL */
   char fsal_path_lib[MAXPATHLEN];
 
-#ifdef _USE_SHARED_FSAL
+/* TODO - This code is now broken by the new fsal api which is still
+ * in flux.  Commented some stale stuff out to build at this point.
+ * come back to this when api settles down enough.
+ */
+
+#if 0
+/* #ifdef _USE_SHARED_FSAL */
   if(nfs_get_fsalpathlib_conf(filename, fsal_path_lib))
     {
       fprintf(stderr, "NFS MAIN: Error parsing configuration file.\n");

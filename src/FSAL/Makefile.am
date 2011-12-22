@@ -1,4 +1,4 @@
-AM_CFLAGS                     = $(FSAL_CFLAGS) $(SEC_CFLAGS)
+AM_CFLAGS                     = $(FSAL_CFLAGS) $(SEC_CFLAGS) -ldl
 
 noinst_LTLIBRARIES          = libfsalcommon.la
 
@@ -6,10 +6,18 @@ libfsalcommon_la_SOURCES = fsal_strings.c          \
                            fsal_errors.c           \
                            fsal_convert.c          \
                            fsal_glue.c             \
+			   fsal_commonlib.c	   \
+			   fsal_manager.c          \
 			   common_methods.c	   \
 			   access_check.c	   \
+			   common_functions.c      \
+			   legacy_ops.c		   \
+			   fsal_config.c	   \
 			   ../include/FSAL/common_methods.h \
 			   ../include/FSAL/access_check.h \
+			   ../include/FSAL/common_functions.h \
+			   ../include/FSAL/fsal_commonlib.h \
+			   ../include/FSAL/fsal_init.h \
                            ../include/fsal.h       \
                            ../include/fsal_types.h \
                            ../include/err_fsal.h   \

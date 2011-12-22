@@ -281,8 +281,8 @@ typedef struct fsal_fsid__
 
 typedef struct fsal_dev__
 {
-  fsal_uint_t major;
-  fsal_uint_t minor;
+  dev_t major;
+  dev_t minor;
 } fsal_dev_t;
 
 /* The maximum ACLs that a file can support */
@@ -646,7 +646,7 @@ typedef fsal_uint_t fsal_accessflags_t;
 typedef struct fsal_dirent__
 {
 
-  fsal_handle_t handle;             /**< directory entry handle. */
+  struct fsal_obj_handle *handle;   /**< directory entry handle. */
   fsal_name_t name;                 /**< directory entry name.   */
   fsal_cookie_t cookie;             /**< cookie for reading dir
                                          from this entry         */
@@ -778,6 +778,27 @@ typedef fsal_ushort_t fsal_fhexptype_t;
         break;                                                    \
     }
 
+/* enums for accessing
+ * boolean fields of staticfsinfo
+ */
+
+typedef enum {
+	no_trunc,
+	chown_restricted,
+	case_insensitive,
+	case_preserving,
+	link_support,
+	symlink_support,
+	lock_support,
+	lock_support_owner,
+	lock_support_async_block,
+	named_attr,
+	unique_handles,
+	cansettime,
+	homogenous,
+	auth_exportpath_xdev
+} fsal_fsinfo_options_t;
+	
 struct fsal_staticfsinfo_t
 {
 

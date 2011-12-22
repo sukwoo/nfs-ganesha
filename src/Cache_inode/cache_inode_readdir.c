@@ -991,6 +991,8 @@ cache_inode_status_t cache_inode_readdir_populate(
 
           /* Try adding the entry, if it exists then this existing entry is
              returned */
+/* FIXME: we will have to put/get these dirent handles.  How, tbd
+ */
           new_entry_fsdata.handle = array_dirent[iter].handle;
 	  new_entry_fsdata.cookie = 0; /* XXX needed? */
 

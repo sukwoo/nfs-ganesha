@@ -86,7 +86,7 @@ cache_inode_access_sw(cache_entry_t * pentry,
     fsal_status_t fsal_status;
     cache_inode_status_t cache_status;
     fsal_accessflags_t used_access_type;
-    fsal_handle_t *pfsal_handle = NULL;
+    struct fsal_obj_handle *pfsal_handle = NULL;
 
     LogFullDebug(COMPONENT_CACHE_INODE, "cache_inode_access_sw: access_type=0X%x",
                  access_type);
@@ -126,7 +126,6 @@ cache_inode_access_sw(cache_entry_t * pentry,
                     /* We get the attributes */
                     cache_inode_get_attributes(pentry, &attr);
 
-                    fsal_status = FSAL_test_access(pcontext, used_access_type, &attr);
                 }
             else
                 {
@@ -142,11 +141,10 @@ cache_inode_access_sw(cache_entry_t * pentry,
                                               &pclient->mfsl_context,
                                               used_access_type, &attr, NULL);
 #else
-                    fsal_status = FSAL_access(pfsal_handle, pcontext,
-                                              used_access_type, &attr);
+                    fsal_status = pfsal_handle->ops->getattrs(pfsal_handle, &attr);
 #endif
                 }
-
+	    fsal_status = FSAL_test_access(pcontext, used_access_type, &attr);
             if(FSAL_IS_ERROR(fsal_status))
                 {
                     *pstatus = cache_inode_error_convert(fsal_status);

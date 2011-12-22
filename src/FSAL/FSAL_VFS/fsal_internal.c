@@ -49,6 +49,7 @@
 #include <sys/types.h>
 #include <mntent.h>
 
+
 /* Add missing prototype in vfs.h */
 int fd_to_handle(int fd, void **hanp, size_t * hlen);
 
@@ -241,6 +242,12 @@ void fsal_internal_getstats(fsal_statistics_t * output_stats)
 
 }
 
+/* N.B. the initialization of the semaphore is not done so these
+ * are effectively NOPs.  They serve no useful purpose for VFS
+ * other than slow things dowm a little.  Remove after all call
+ * sites are removed.
+ */
+
 /**
  *  Used to limit the number of simultaneous calls to Filesystem.
  */
@@ -264,138 +271,6 @@ void ReleaseTokenFSCall()
   /* there is a limit */
   semaphore_V(&sem_fs_calls);
 
-}
-
-/*
- *  This function initializes shared variables of the fsal.
- */
-fsal_status_t fsal_internal_init_global(fsal_init_info_t * fsal_info,
-                                        fs_common_initinfo_t * fs_common_info,
-                                        fs_specific_initinfo_t * fs_specific_info)
-{
-
-  /* sanity check */
-  if(!fsal_info || !fs_common_info || !fs_specific_info)
-    ReturnCode(ERR_FSAL_FAULT, 0);
-
-  /* inits FS call semaphore */
-  if(fsal_info->max_fs_calls > 0)
-    {
-      int rc;
-
-      limit_calls = TRUE;
-
-      rc = semaphore_init(&sem_fs_calls, fsal_info->max_fs_calls);
-
-      if(rc != 0)
-        ReturnCode(ERR_FSAL_SERVERFAULT, rc);
-
-      LogDebug(COMPONENT_FSAL,
-                        "FSAL INIT: Max simultaneous calls to filesystem is limited to %u.",
-                        fsal_info->max_fs_calls);
-
-    }
-  else
-    {
-      LogDebug(COMPONENT_FSAL,
-                        "FSAL INIT: Max simultaneous calls to filesystem is unlimited.");
-    }
-
-  /* setting default values. */
-  global_fs_info = default_posix_info;
-
-  LogDebug(COMPONENT_FSAL, "{");
-  LogDebug(COMPONENT_FSAL, "  maxfilesize  = %llX    ",
-           default_posix_info.maxfilesize);
-  LogDebug(COMPONENT_FSAL, "  maxlink  = %lu   ",
-           default_posix_info.maxlink);
-  LogDebug(COMPONENT_FSAL, "  maxnamelen  = %lu  ",
-           default_posix_info.maxnamelen);
-  LogDebug(COMPONENT_FSAL, "  maxpathlen  = %lu  ",
-           default_posix_info.maxpathlen);
-  LogDebug(COMPONENT_FSAL, "  no_trunc  = %d ",
-           default_posix_info.no_trunc);
-  LogDebug(COMPONENT_FSAL, "  chown_restricted  = %d ",
-           default_posix_info.chown_restricted);
-  LogDebug(COMPONENT_FSAL, "  case_insensitive  = %d ",
-           default_posix_info.case_insensitive);
-  LogDebug(COMPONENT_FSAL, "  case_preserving  = %d ",
-           default_posix_info.case_preserving);
-  LogDebug(COMPONENT_FSAL, "  fh_expire_type  = %hu ",
-           default_posix_info.fh_expire_type);
-  LogDebug(COMPONENT_FSAL, "  link_support  = %d  ",
-           default_posix_info.link_support);
-  LogDebug(COMPONENT_FSAL, "  symlink_support  = %d  ",
-           default_posix_info.symlink_support);
-  LogDebug(COMPONENT_FSAL, "  lock_support  = %d  ",
-           default_posix_info.lock_support);
-  LogDebug(COMPONENT_FSAL, "  lock_support_owner  = %d  ",
-           global_fs_info.lock_support_owner);
-  LogDebug(COMPONENT_FSAL, "  lock_support_async_block  = %d  ",
-           global_fs_info.lock_support_async_block);
-  LogDebug(COMPONENT_FSAL, "  named_attr  = %d  ",
-           default_posix_info.named_attr);
-  LogDebug(COMPONENT_FSAL, "  unique_handles  = %d  ",
-           default_posix_info.unique_handles);
-  LogDebug(COMPONENT_FSAL, "  acl_support  = %hu  ",
-           default_posix_info.acl_support);
-  LogDebug(COMPONENT_FSAL, "  cansettime  = %d  ",
-           default_posix_info.cansettime);
-  LogDebug(COMPONENT_FSAL, "  homogenous  = %d  ",
-           default_posix_info.homogenous);
-  LogDebug(COMPONENT_FSAL, "  supported_attrs  = %llX  ",
-           default_posix_info.supported_attrs);
-  LogDebug(COMPONENT_FSAL, "  maxread  = %llX     ",
-           default_posix_info.maxread);
-  LogDebug(COMPONENT_FSAL, "  maxwrite  = %llX     ",
-           default_posix_info.maxwrite);
-  LogDebug(COMPONENT_FSAL, "  umask  = %X ", default_posix_info.umask);
-  LogDebug(COMPONENT_FSAL, "}");
-
-  /* Analyzing fs_common_info struct */
-
-  if((fs_common_info->behaviors.maxfilesize != FSAL_INIT_FS_DEFAULT) ||
-     (fs_common_info->behaviors.maxlink != FSAL_INIT_FS_DEFAULT) ||
-     (fs_common_info->behaviors.maxnamelen != FSAL_INIT_FS_DEFAULT) ||
-     (fs_common_info->behaviors.maxpathlen != FSAL_INIT_FS_DEFAULT) ||
-     (fs_common_info->behaviors.no_trunc != FSAL_INIT_FS_DEFAULT) ||
-     (fs_common_info->behaviors.case_insensitive != FSAL_INIT_FS_DEFAULT) ||
-     (fs_common_info->behaviors.case_preserving != FSAL_INIT_FS_DEFAULT) ||
-     (fs_common_info->behaviors.named_attr != FSAL_INIT_FS_DEFAULT) ||
-     (fs_common_info->behaviors.lease_time != FSAL_INIT_FS_DEFAULT) ||
-     (fs_common_info->behaviors.supported_attrs != FSAL_INIT_FS_DEFAULT) ||
-     (fs_common_info->behaviors.homogenous != FSAL_INIT_FS_DEFAULT))
-    ReturnCode(ERR_FSAL_NOTSUPP, 0);
-
-  SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, symlink_support);
-  SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, link_support);
-  SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, lock_support);
-  SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, lock_support_owner);
-  SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, lock_support_async_block);
-  SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, cansettime);
-
-  SET_INTEGER_PARAM(global_fs_info, fs_common_info, maxread);
-  SET_INTEGER_PARAM(global_fs_info, fs_common_info, maxwrite);
-
-  SET_BITMAP_PARAM(global_fs_info, fs_common_info, umask);
-
-  SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, auth_exportpath_xdev);
-
-  SET_BITMAP_PARAM(global_fs_info, fs_common_info, xattr_access_rights);
-
-  LogFullDebug(COMPONENT_FSAL,
-                    "Supported attributes constant = 0x%llX.",
-                    VFS_SUPPORTED_ATTRIBUTES);
-
-  LogFullDebug(COMPONENT_FSAL,
-                    "Supported attributes default = 0x%llX.",
-                    default_posix_info.supported_attrs);
-
-  LogDebug(COMPONENT_FSAL,
-                    "FSAL INIT: Supported attributes mask = 0x%llX.",
-                    global_fs_info.supported_attrs);
-
-  ReturnCode(ERR_FSAL_NO_ERROR, 0);
 }
 
 fsal_status_t fsal_internal_handle2fd(fsal_op_context_t * p_context,
