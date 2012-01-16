@@ -816,7 +816,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
   cache_inode_status_t cache_status;
 
   int statfscalled = 0;
-  fsal_staticfsinfo_t * pstaticinfo = NULL ;
+  struct fsal_export *export = pexport->export_hdl;
   fsal_dynamicfsinfo_t dynamicinfo;
 
   if( data != NULL ) /* data can be NULL if called from FSAL_PROXY operating as a client */
@@ -1063,7 +1063,6 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
           break;
 
         case FATTR4_LEASE_TIME:
-          /* lease_time = htonl( (fattr4_lease_time)pstaticinfo->lease_time.seconds ) ; */
           lease_time = htonl(nfs_param.nfsv4_param.lease_lifetime);
           memcpy((char *)(attrvalsBuffer + LastOffset), &lease_time,
                  sizeof(fattr4_lease_time));
@@ -1122,7 +1121,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
           break;
 
         case FATTR4_CASE_INSENSITIVE:
-          case_insensitive = htonl(pstaticinfo->case_insensitive);
+	  case_insensitive = htonl(export->ops->fs_supports(export, case_insensitive));
           memcpy((char *)(attrvalsBuffer + LastOffset), &case_insensitive,
                  sizeof(fattr4_case_insensitive));
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
@@ -1130,7 +1129,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
           break;
 
         case FATTR4_CASE_PRESERVING:
-          case_preserving = htonl(pstaticinfo->case_preserving);
+          case_preserving = htonl(export->ops->fs_supports(export, case_preserving));
           memcpy((char *)(attrvalsBuffer + LastOffset), &case_preserving,
                  sizeof(fattr4_case_preserving));
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
@@ -1139,7 +1138,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
 
         case FATTR4_CHOWN_RESTRICTED:
           /* chown is restricted to root */
-          chown_restricted = htonl(pstaticinfo->chown_restricted);
+	  chown_restricted = htonl(export->ops->fs_supports(export, chown_restricted));
           memcpy((char *)(attrvalsBuffer + LastOffset), &chown_restricted,
                  sizeof(fattr4_chown_restricted));
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
@@ -1184,9 +1183,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
           if(!statfscalled)
             {
               if((cache_status = cache_inode_statfs(data->current_entry,
-                                                    &dynamicinfo,
-                                                    data->pcontext,
-                                                    &cache_status)) !=
+                                                    &dynamicinfo)) !=
                  CACHE_INODE_SUCCESS)
                 {
                   op_attr_success = 0;
@@ -1206,9 +1203,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
           if(!statfscalled)
             {
               if((cache_status = cache_inode_statfs(data->current_entry,
-                                                    &dynamicinfo,
-                                                    data->pcontext,
-                                                    &cache_status)) !=
+                                                    &dynamicinfo)) !=
                  CACHE_INODE_SUCCESS)
                 {
                   op_attr_success = 0;
@@ -1228,9 +1223,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
           if(!statfscalled)
             {
               if((cache_status = cache_inode_statfs(data->current_entry,
-                                                    &dynamicinfo,
-                                                    data->pcontext,
-                                                    &cache_status)) !=
+                                                    &dynamicinfo)) !=
                  CACHE_INODE_SUCCESS)
                 {
                   op_attr_success = 0;
@@ -1291,28 +1284,28 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
           break;
 
         case FATTR4_MAXLINK:
-          maxlink = htonl(pstaticinfo->maxlink);
+	  maxlink = htonl(export->ops->fs_maxlink(export));
           memcpy((char *)(attrvalsBuffer + LastOffset), &maxlink, sizeof(fattr4_maxlink));
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
           op_attr_success = 1;
           break;
 
         case FATTR4_MAXNAME:
-          maxname = htonl((fattr4_maxname) pstaticinfo->maxnamelen);
+	  maxname = htonl((fattr4_maxname) export->ops->fs_maxnamelen(export));
           memcpy((char *)(attrvalsBuffer + LastOffset), &maxname, sizeof(fattr4_maxname));
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
           op_attr_success = 1;
           break;
 
         case FATTR4_MAXREAD:
-          maxread = nfs_htonl64((fattr4_maxread) pstaticinfo->maxread);
+	  maxread = nfs_htonl64((fattr4_maxread) export->ops->fs_maxread(export));
           memcpy((char *)(attrvalsBuffer + LastOffset), &maxread, sizeof(fattr4_maxread));
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
           op_attr_success = 1;
           break;
 
         case FATTR4_MAXWRITE:
-          maxwrite = nfs_htonl64((fattr4_maxwrite) pstaticinfo->maxwrite);
+	  maxwrite = nfs_htonl64((fattr4_maxwrite) export->ops->fs_maxwrite(export));
           memcpy((char *)(attrvalsBuffer + LastOffset), &maxwrite,
                  sizeof(fattr4_maxwrite));
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
@@ -1336,7 +1329,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
 
         case FATTR4_NO_TRUNC:
           /* File's names are not truncated, an error is returned is name is too long */
-          no_trunc = htonl(pstaticinfo->no_trunc);
+	  no_trunc = htonl(export->ops->fs_supports(export, no_trunc));
           memcpy((char *)(attrvalsBuffer + LastOffset), &no_trunc,
                  sizeof(fattr4_no_trunc));
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
@@ -1460,9 +1453,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
           if(!statfscalled)
             {
               if((cache_status = cache_inode_statfs(data->current_entry,
-                                                    &dynamicinfo,
-                                                    data->pcontext,
-                                                    &cache_status)) !=
+                                                    &dynamicinfo)) !=
                  CACHE_INODE_SUCCESS)
                 {
                   op_attr_success = 0;
@@ -1482,9 +1473,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
           if(!statfscalled)
             {
               if((cache_status = cache_inode_statfs(data->current_entry,
-                                                    &dynamicinfo,
-                                                    data->pcontext,
-                                                    &cache_status)) !=
+                                                    &dynamicinfo)) !=
                  CACHE_INODE_SUCCESS)
                 {
                   op_attr_success = 0;
@@ -1504,9 +1493,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
           if(!statfscalled)
             {
               if((cache_status = cache_inode_statfs(data->current_entry,
-                                                    &dynamicinfo,
-                                                    data->pcontext,
-                                                    &cache_status)) !=
+                                                    &dynamicinfo)) !=
                  CACHE_INODE_SUCCESS)
                 {
                   op_attr_success = 0;
@@ -4127,12 +4114,7 @@ int nfs4_MakeCred(compound_data_t * data)
      == FALSE)
     return NFS4ERR_WRONGSEC;
 
-  if(nfs_build_fsal_context(data->reqp,
-                            data->pexport,
-                            data->pcontext,
-                            &user_credentials) == FALSE)
-    return NFS4ERR_WRONGSEC;
-
+  data->user_credentials = user_credentials;
   return NFS4_OK;
 }                               /* nfs4_MakeCred */
 
