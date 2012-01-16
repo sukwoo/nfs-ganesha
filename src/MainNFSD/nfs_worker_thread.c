@@ -1346,25 +1346,9 @@ static void nfs_rpc_execute(nfs_request_data_t * preqnfs,
       if(pworker_data->pfuncdesc->dispatch_behaviour & NEEDS_CRED)
         {
 	  /* Swap the anonymous uid/gid if the user should be anonymous */
-          if(nfs_check_anon(&related_client, pexport, &user_credentials) == FALSE
-	     || nfs_build_fsal_context(ptr_req,
-                                       pexport,
-				       &pworker_data->thread_fsal_context,
-                                       &user_credentials) == FALSE)
+          if(nfs_check_anon(&related_client, pexport, &user_credentials) == FALSE)
             {
-              LogInfo(COMPONENT_DISPATCH,
-                      "authentication failed, rejecting client");
-              svcerr_auth(ptr_svc, AUTH_TOOWEAK);
-              pworker_data->current_xid = 0;    /* No more xid managed */
-
-              if (nfs_dupreq_delete(rpcxid, ptr_req, preqnfs->xprt,
-                                    &pworker_data->dupreq_pool) != DUPREQ_SUCCESS)
-                {
-                  LogCrit(COMPONENT_DISPATCH,
-                         "Attempt to delete duplicate request failed on line %d",
-                         __LINE__);
-                }
-              return;
+	      pworker_data->user_credentials = user_credentials;
             }
         }
 
