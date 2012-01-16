@@ -257,7 +257,6 @@ int cache_content_client_init(cache_content_client_t * pclient,
 
 cache_content_status_t cache_content_create_name(char *path,
                                                  cache_content_nametype_t type,
-                                                 fsal_op_context_t * pcontext,
                                                  cache_entry_t * pentry_inode,
                                                  cache_content_client_t * pclient);
 
@@ -392,7 +391,6 @@ void cache_content_local_cache_closedir(cache_content_dirinfo_t * directory);
 int cache_content_invalidate_flushed(LRU_entry_t * plru_entry, void *addparam);
 cache_content_status_t cache_content_test_cached(cache_entry_t * pentry_inode,
                                                  cache_content_client_t * pclient,
-                                                 fsal_op_context_t * pcontext,
                                                  cache_content_status_t * pstatus);
 off_t cache_content_get_cached_size(cache_content_entry_t * pentry);
 
