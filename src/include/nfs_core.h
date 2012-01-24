@@ -88,6 +88,9 @@
 #define NB_MAX_WORKER_THREAD 4096
 #define NB_MAX_FLUSHER_THREAD 100
 
+/* Maximum stacksize for a TCP connection manager */
+#define THREAD_TCP_STACK_SIZE 1048576
+
 /* NFS daemon behavior default values */
 #define NB_WORKER_THREAD_DEFAULT  16
 #define NB_FLUSHER_THREAD_DEFAULT 16
