@@ -1466,6 +1466,7 @@ void FSAL_LoadConsts(void);
  */
 
 #include "fsal_api.h"
+#include "FSAL/access_check.h" /* rethink where this should go */
 
 #endif                          /* ! _USE_SWIG */
 
