@@ -728,65 +728,6 @@ int nfs_dupreq_finish(long xid,
 
 /**
  *
- * nfs_dupreq_get: Tries to get a duplicated requests for dupreq cache
- *
- * Tries to get a duplicated requests for dupreq cache.
- *
- * @param xid [IN] the transfer id we are looking for
- * @param pstatus [OUT] the pointer to the status for the operation
- *
- * @return the result previously set if *pstatus == DUPREQ_SUCCESS
- *
- */
-nfs_res_t nfs_dupreq_get(long xid, struct svc_req *ptr_req, SVCXPRT *xprt, int *pstatus)
-{
-  hash_buffer_t buffkey;
-  hash_buffer_t buffval;
-  nfs_res_t res_nfs;
-  dupreq_key_t dupkey;
-  hash_table_t * ht_dupreq = NULL ;
-
-  /* Get correct HT depending on proto used */
-  ht_dupreq = get_ht_by_xprt( xprt ) ;
- 
-
-  memset(&res_nfs, 0, sizeof(res_nfs));
-
-  /* Get the socket address for the key */
-  if(copy_xprt_addr(&dupkey.addr, xprt) == 0)
-    {
-      *pstatus = DUPREQ_NOT_FOUND;
-      return res_nfs;
-    }
-
-  dupkey.xid = xid;
-  dupkey.checksum = 0;
-
-  /* I have to keep an integer as key, I wil use the pointer buffkey->pdata for this,
-   * this also means that buffkey->len will be 0 */
-  buffkey.pdata = (caddr_t) &dupkey;
-  buffkey.len = sizeof(dupreq_key_t);
-  if(HashTable_Get(ht_dupreq, &buffkey, &buffval) == HASHTABLE_SUCCESS)
-    {
-      dupreq_entry_t *pdupreq = (dupreq_entry_t *)buffval.pdata;
-      /* reset timestamp */
-      pdupreq->timestamp = time(NULL);
-
-      *pstatus = DUPREQ_SUCCESS;
-      res_nfs = pdupreq->res_nfs;
-      LogDupReq(" dupreq_get: Hit in the dupreq cache for", &pdupreq->addr,
-		pdupreq->xid, pdupreq->rq_prog);
-    }
-  else
-    {
-      LogDupReq("Failed to get dupreq entry", &dupkey.addr, dupkey.xid, ptr_req->rq_prog);
-      *pstatus = DUPREQ_NOT_FOUND;
-    }
-  return res_nfs;
-}                               /* nfs_dupreq_get */
-
-/**
- *
  * nfs_dupreq_gc_function: Tests is an entry in dupreq cache is to be set invalid (has expired).
  *
  * Tests is an entry in dupreq cache is to be set invalid (has expired).

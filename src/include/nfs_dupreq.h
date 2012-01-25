@@ -96,7 +96,6 @@ int print_entry_dupreq(LRU_data_t data, char *str);
 int clean_entry_dupreq(LRU_entry_t * pentry, void *addparam);
 int nfs_dupreq_gc_function(LRU_entry_t * pentry, void *addparam);
 
-nfs_res_t nfs_dupreq_get(long xid, struct svc_req *ptr_req, SVCXPRT *xprt, int *pstatus);
 int nfs_dupreq_delete(long xid, struct svc_req *ptr_req, SVCXPRT *xprt,
                       struct prealloc_pool *dupreq_pool);
 int nfs_dupreq_add_not_finished(long xid,
