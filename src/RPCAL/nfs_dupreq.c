@@ -728,7 +728,7 @@ int nfs_dupreq_finish(long xid,
 
 /**
  *
- * nfs_dupreq_gc_function: Tests is an entry in dupreq cache is to be set invalid (has expired).
+ * nfs_dupreq_gc_udp_function: Tests is an entry in dupreq cache is to be set invalid (has expired).
  *
  * Tests is an entry in dupreq cache is to be set invalid (has expired).
  *
@@ -740,18 +740,22 @@ int nfs_dupreq_finish(long xid,
  * @see LRU_gc_invalid
  *
  */
-int nfs_dupreq_gc_function(LRU_entry_t * pentry, void *addparam)
+int nfs_dupreq_gc_udp_function(LRU_entry_t * pentry, void *addparam)
 {
   dupreq_entry_t *pdupreq = NULL;
 
   pdupreq = (dupreq_entry_t *) (pentry->buffdata.pdata);
+
+  /* Manage only UDP request */
+  if( pdupreq->ipproto != IPPROTO_UDP )
+   return LRU_LIST_DO_NOT_SET_INVALID ;
 
   /* Test if entry is expired */
   if(time(NULL) - pdupreq->timestamp > nfs_param.core_param.expiration_dupreq)
     return LRU_LIST_SET_INVALID;
 
   return LRU_LIST_DO_NOT_SET_INVALID;
-}                               /* nfs_dupreq_fc_function */
+}                               /* nfs_dupreq_gc_udp_function */
 
 /**
  *
