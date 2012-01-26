@@ -94,7 +94,7 @@ unsigned int get_rpc_xid(struct svc_req *reqp);
 int compare_req(hash_buffer_t * buff1, hash_buffer_t * buff2);
 int print_entry_dupreq(LRU_data_t data, char *str);
 int clean_entry_dupreq(LRU_entry_t * pentry, void *addparam);
-int nfs_dupreq_gc_function(LRU_entry_t * pentry, void *addparam);
+int nfs_dupreq_gc_udp_function(LRU_entry_t * pentry, void *addparam);
 
 int nfs_dupreq_delete(long xid, struct svc_req *ptr_req, SVCXPRT *xprt,
                       struct prealloc_pool *dupreq_pool);

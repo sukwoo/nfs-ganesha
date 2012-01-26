@@ -2075,14 +2075,14 @@ void *worker_thread(void *IndexArg)
 
       if(pmydata->passcounter > nfs_param.worker_param.nb_before_gc)
         {
-          /* Garbage collection on dup req cache */
+          /* Garbage collection on dup req cache for udp */
           LogFullDebug(COMPONENT_DISPATCH,
                        "before dupreq invalidation nb_entry=%d nb_invalid=%d",
                        pmydata->duplicate_request->nb_entry,
                        pmydata->duplicate_request->nb_invalid);
           if((rc =
               LRU_invalidate_by_function(pmydata->duplicate_request,
-                                         nfs_dupreq_gc_function,
+                                         nfs_dupreq_gc_udp_function,
                                          NULL)) != LRU_LIST_SUCCESS)
             {
               LogCrit(COMPONENT_DISPATCH,
