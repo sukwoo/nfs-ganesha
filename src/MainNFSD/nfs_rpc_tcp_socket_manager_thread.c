@@ -138,7 +138,7 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
 
       LogFullDebug(COMPONENT_DISPATCH,
                    "A NFS TCP request from an already connected client");
-      
+
       status = process_rpc_request(Xports[tcp_sock]);
 
       if(status == PROCESS_LOST_CONN)

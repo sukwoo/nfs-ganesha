@@ -109,6 +109,7 @@ int nfs_dupreq_finish(long xid,
 		      SVCXPRT *xprt,
 		      nfs_res_t * p_res_nfs,
 		      LRU_list_t * lru_dupreq);
+nfs_res_t nfs_dupreq_get(long xid, struct svc_req *ptr_req, SVCXPRT *xprt, int *pstatus) ;
 
 unsigned long dupreq_value_hash_func(hash_parameter_t * p_hparam,
                                      hash_buffer_t * buffclef);
