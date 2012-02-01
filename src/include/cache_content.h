@@ -271,7 +271,6 @@ cache_content_entry_t *cache_content_new_entry(cache_entry_t * pentry_inode,
                                                cache_content_spec_data_t * pspecdata,
                                                cache_content_client_t * pclient,
                                                cache_content_add_behaviour_t how,
-                                               fsal_op_context_t * pcontext,
                                                cache_content_status_t * pstatus);
 
 cache_content_status_t cache_content_release_entry(cache_content_entry_t * pentry,
@@ -295,7 +294,6 @@ cache_content_status_t cache_content_rdwr(cache_content_entry_t * pentry,
                                           fsal_boolean_t * p_fsal_eof,
                                           struct stat *pbuffstat,
                                           cache_content_client_t * pclient,
-                                          fsal_op_context_t * pcontext,
                                           cache_content_status_t * pstatus);
 
 #define cache_content_read( a, b, c, d, e, f, g, h, i ) cache_content_rdwr( a, CACHE_CONTENT_READ, b, c, d, e, f, g, h, i )
@@ -309,17 +307,14 @@ cache_content_status_t cache_content_truncate(cache_content_entry_t * pentry,
 cache_content_status_t cache_content_flush(cache_content_entry_t * pentry,
                                            cache_content_flush_behaviour_t flushhow,
                                            cache_content_client_t * pclient,
-                                           fsal_op_context_t * pcontext,
                                            cache_content_status_t * pstatus);
 
 cache_content_status_t cache_content_refresh(cache_content_entry_t * pentry,
                                              cache_content_client_t * pclient,
-                                             fsal_op_context_t * pcontext,
                                              cache_content_refresh_how_t how,
                                              cache_content_status_t * pstatus);
 
 cache_content_status_t cache_content_sync_all(cache_content_client_t * pclient,
-                                              fsal_op_context_t * pcontext,
                                               cache_content_status_t * pstatus);
 
 cache_content_status_t cache_content_read_conf_client_parameter(config_file_t in_config,
@@ -339,7 +334,6 @@ cache_content_status_t cache_content_crash_recover(unsigned short exportid,
                                                    cache_content_client_t * pclient_data,
                                                    cache_inode_client_t * pclient_inode,
                                                    hash_table_t * ht,
-                                                   fsal_op_context_t * pcontext,
                                                    cache_content_status_t * pstatus);
 
 int cache_content_get_export_id(char *dirname);
