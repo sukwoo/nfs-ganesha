@@ -132,7 +132,6 @@ cache_content_entry_t *cache_content_new_entry(cache_entry_t * pentry_inode,
   /* Set the path to the local files */
   if((status = cache_content_create_name(pfc_pentry->local_fs_entry.cache_path_index,
                                          CACHE_CONTENT_INDEX_FILE,
-                                         pcontext,
                                          pentry_inode, pclient)) != CACHE_CONTENT_SUCCESS)
     {
       ReleaseToPool(pfc_pentry, &pclient->content_pool);
@@ -151,7 +150,6 @@ cache_content_entry_t *cache_content_new_entry(cache_entry_t * pentry_inode,
 
   if((status = cache_content_create_name(pfc_pentry->local_fs_entry.cache_path_data,
                                          CACHE_CONTENT_DATA_FILE,
-                                         pcontext,
                                          pentry_inode, pclient)) != CACHE_CONTENT_SUCCESS)
     {
       ReleaseToPool(pfc_pentry, &pclient->content_pool);
