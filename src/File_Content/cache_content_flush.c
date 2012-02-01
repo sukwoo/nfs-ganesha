@@ -350,7 +350,6 @@ cache_content_status_t cache_content_refresh(cache_content_entry_t * pentry,
 }                               /* cache_content_refresh */
 
 cache_content_status_t cache_content_sync_all(cache_content_client_t * pclient,
-                                              fsal_op_context_t * pcontext,
                                               cache_content_status_t * pstatus)
 {
   *pstatus = CACHE_CONTENT_SUCCESS;
