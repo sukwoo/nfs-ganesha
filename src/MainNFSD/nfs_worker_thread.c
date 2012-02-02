@@ -1714,7 +1714,8 @@ static void DispatchWorkNFS_To_Worker(request_data_t *pnfsreq, unsigned int work
   V(workers_data[worker_index].wcb.tcb_mutex);
 }
 
-void DispatchWorkNFS( request_data_t *pnfsreq, unsigned int worker_index)
+/* Return 1 if req dispatched to worker, 0 if not (DRC HIT) */
+int DispatchWorkNFS( request_data_t *pnfsreq, unsigned int worker_index)
 { 
    nfs_res_t nfs_res ;
    int status = DUPREQ_NOT_FOUND ;
@@ -1748,12 +1749,13 @@ void DispatchWorkNFS( request_data_t *pnfsreq, unsigned int worker_index)
               svcerr_systemerr( pnfsreq->rcontent.nfs.req.rq_xprt );
              }
 
-           return ;
+           return 0; /* not dispatched */
         }
-       /* else... dispatch to worker and proceed normally */
+       /* else... dispatch to worker using DispatchWorkNFS_To_Worker and proceed normally */
     }
 
    DispatchWorkNFS_To_Worker( pnfsreq, worker_index ) ;
+   return 1 ; /* Tell the caller to treat this as a req managed by a worker */
 } /* DispatchWorkNFS */
 
 
