@@ -21,8 +21,9 @@ SUBDIRS = TIRPC
 librpcal_la_LIBADD = TIRPC/librpcalcore.la
 endif
 
-librpcal_la_SOURCES = nfs_dupreq.c \
-                      rpc_tools.c \
+librpcal_la_SOURCES = nfs_dupreq.c            \
+                      nfs_dupreq_tcp.c        \
+                      rpc_tools.c             \
                       ../include/nfs_dupreq.h
 
 if HAVE_GSSAPI

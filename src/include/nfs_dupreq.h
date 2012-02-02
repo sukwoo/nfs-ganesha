@@ -95,6 +95,7 @@ int compare_req(hash_buffer_t * buff1, hash_buffer_t * buff2);
 int print_entry_dupreq(LRU_data_t data, char *str);
 int clean_entry_dupreq(LRU_entry_t * pentry, void *addparam);
 int nfs_dupreq_gc_udp_function(LRU_entry_t * pentry, void *addparam);
+int nfs_dupreq_gc_tcp_function(LRU_entry_t * pentry, void *addparam);
 
 int nfs_dupreq_delete(long xid, struct svc_req *ptr_req, SVCXPRT *xprt,
                       struct prealloc_pool *dupreq_pool);
@@ -110,6 +111,22 @@ int nfs_dupreq_finish(long xid,
 		      nfs_res_t * p_res_nfs,
 		      LRU_list_t * lru_dupreq);
 nfs_res_t nfs_dupreq_get(long xid, struct svc_req *ptr_req, SVCXPRT *xprt, int *pstatus) ;
+
+int nfs_dupreq_tcp_delete(long xid, struct svc_req *ptr_req, SVCXPRT *xprt,
+                      struct prealloc_pool *dupreq_pool);
+int nfs_dupreq_tcp_add_not_finished(long xid,
+                                struct svc_req *ptr_req,
+                                SVCXPRT *xprt,
+                                struct prealloc_pool *dupreq_pool,
+                                nfs_res_t *res_nfs);
+
+int nfs_dupreq_tcp_finish(long xid,
+                      struct svc_req *ptr_req,
+                      SVCXPRT *xprt,
+                      nfs_res_t * p_res_nfs,
+                      LRU_list_t * lru_dupreq);
+nfs_res_t nfs_dupreq_tcp_get(long xid, struct svc_req *ptr_req, SVCXPRT *xprt, int *pstatus) ;
+
 
 unsigned long dupreq_value_hash_func(hash_parameter_t * p_hparam,
                                      hash_buffer_t * buffclef);
