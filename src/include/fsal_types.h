@@ -212,6 +212,18 @@ typedef enum fsal_nodetype__
 
 /** object name.  */
 
+/* Used to record the uid and gid of the client that made a request. */
+struct user_cred {
+  uid_t caller_uid;
+  gid_t caller_gid;
+  unsigned int caller_glen;
+  gid_t *caller_garray;
+};
+
+/* deprecated and replaced by user_cred
+ * used mainly in the fsal_op_context_t which is itself deprecated
+ */
+
 struct user_credentials {
   uid_t user;
   gid_t group;
