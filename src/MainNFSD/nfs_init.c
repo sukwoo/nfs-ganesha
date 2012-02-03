@@ -341,7 +341,7 @@ void nfs_set_param_default()
   /* Worker parameters : LRU dupreq */
   nfs_param.worker_param.lru_dupreq.nb_entry_prealloc = NB_PREALLOC_LRU_DUPREQ;
   nfs_param.worker_param.lru_dupreq.nb_call_gc_invalid = 100;
-  nfs_param.worker_param.lru_dupreq.clean_entry = clean_entry_dupreq;
+  nfs_param.worker_param.lru_dupreq.clean_entry = clean_entry_dupreq_udp;
   nfs_param.worker_param.lru_dupreq.entry_to_str = print_entry_dupreq;
   nfs_param.worker_param.lru_dupreq.name = "Worker DupReq LRU";
 

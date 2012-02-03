@@ -86,6 +86,7 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
   static char my_name[MAXNAMLEN];
   fridge_entry_t * pfe = NULL;
   process_status_t status;
+  hash_table_t * ht_sock = NULL ;
 
   snprintf(my_name, MAXNAMLEN, "tcp_sock_mgr#fd=%ld", tcp_sock);
   SetNameFunction(my_name);
@@ -109,6 +110,15 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
   LogDebug(COMPONENT_DISPATCH,
            "Starting with pthread id #%p",
            (caddr_t) pthread_self());
+
+  /* Init the hash table for TCP DRC associated with this connection */
+  if((ht_sock = HashTable_Init(nfs_param.dupreq_param.hash_param)) == NULL)
+    {
+      LogCrit(COMPONENT_DUPREQ,
+              "Cannot init the duplicate request hash table for socket %u", tcp_sock);
+      return -1;
+    }
+  TCP_DRC_HashTables[tcp_sock] = ht_sock ; 
 
   for(;;)
     {

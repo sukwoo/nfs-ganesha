@@ -85,7 +85,7 @@ extern nfs_function_desc_t rquota2_func_desc[];
 #endif                          /* _USE_QUOTA */
 /* Structure used for duplicated request cache */
 hash_table_t *ht_dupreq_udp;
-hash_table_t *ht_dupreq_tcp;
+extern hash_table_t ** TCP_DRC_HashTables ;
 
 void LogDupReq(const char *label, sockaddr_t *addr, long xid, u_long rq_prog)
 {
@@ -167,7 +167,7 @@ static unsigned int get_ipproto_by_xprt( SVCXPRT * xprt )
 
 static hash_table_t * get_ht_by_xprt( SVCXPRT * xprt )
 {
-   return (get_ipproto_by_xprt( xprt )==IPPROTO_UDP)?ht_dupreq_udp:ht_dupreq_tcp ;
+   return (get_ipproto_by_xprt( xprt )==IPPROTO_UDP)?ht_dupreq_udp:TCP_DRC_HashTables[xprt->xp_fd] ;
 }
 
 
@@ -342,9 +342,9 @@ int nfs_dupreq_delete(long xid, struct svc_req *ptr_req, SVCXPRT *xprt,
 
 /**
  *
- * clean_entry_dupreq: cleans an entry in the dupreq cache.
+ * clean_entry_dupreq_udp: cleans an entry in the UDP dupreq cache.
  *
- * cleans an entry in the dupreq cache.
+ * cleans an entry in the UDP dupreq cache.
  *
  * @param pentry [INOUT] entry to be cleaned.
  * @param addparam [IN] additional parameter used for cleaning.
@@ -352,13 +352,12 @@ int nfs_dupreq_delete(long xid, struct svc_req *ptr_req, SVCXPRT *xprt,
  * @return 0 if ok, other values mean an error.
  *
  */
-int clean_entry_dupreq(LRU_entry_t * pentry, void *addparam)
+int clean_entry_dupreq_udp(LRU_entry_t * pentry, void *addparam)
 {
   hash_buffer_t buffkey;
   struct prealloc_pool *dupreq_pool = (struct prealloc_pool *) addparam;
   dupreq_entry_t *pdupreq = (dupreq_entry_t *) (pentry->buffdata.pdata);
   dupreq_key_t dupkey;
-  hash_table_t * ht_dupreq = NULL ;
   
   /* Get the socket address for the key */
   memcpy((char *)&dupkey.addr, (char *)&pdupreq->addr, sizeof(dupkey.addr));
@@ -371,14 +370,9 @@ int clean_entry_dupreq(LRU_entry_t * pentry, void *addparam)
   buffkey.len = sizeof(dupreq_key_t);
 
   /* Get correct HT depending on proto used */
-  if( pdupreq->ipproto == IPPROTO_TCP )
-     ht_dupreq = ht_dupreq_tcp ;
-  else
-     ht_dupreq = ht_dupreq_udp ;
-
   LogDupReq("Garbage collection on", &pdupreq->addr, pdupreq->xid, pdupreq->rq_prog);
 
-  return _remove_dupreq(ht_dupreq, &buffkey, pdupreq, dupreq_pool, NFS_REQ_OK);
+  return _remove_dupreq(ht_dupreq_udp, &buffkey, pdupreq, dupreq_pool, NFS_REQ_OK);
 }                               /* clean_entry_dupreq */
 
 /**
@@ -529,14 +523,6 @@ int nfs_Init_dupreq(nfs_rpc_dupreq_parameter_t param)
               "Cannot init the duplicate request hash table");
       return -1;
     }
-
-  if((ht_dupreq_tcp = HashTable_Init(param.hash_param)) == NULL)
-    {
-      LogCrit(COMPONENT_DUPREQ,
-              "Cannot init the duplicate request hash table");
-      return -1;
-    }
-
 
   return DUPREQ_SUCCESS;
 }                               /* nfs_Init_dupreq */
@@ -830,5 +816,5 @@ int nfs_dupreq_gc_udp_function(LRU_entry_t * pentry, void *addparam)
 void nfs_dupreq_get_stats(hash_stat_t * phstat_udp, hash_stat_t * phstat_tcp )
 {
   HashTable_GetStats(ht_dupreq_udp, phstat_udp);
-  HashTable_GetStats(ht_dupreq_tcp, phstat_tcp);
+  //HashTable_GetStats(ht_dupreq_tcp, phstat_tcp);
 }                               /* nfs_dupreq_get_stats */

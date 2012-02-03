@@ -76,6 +76,8 @@ pthread_cond_t *condvar_xprt;
 SVCXPRT **Xports;
 fd_set Svc_fdset;
 
+hash_table_t ** TCP_DRC_HashTables;
+
 const char *str_sock_type(int st)
 {
   static char buf[16];
@@ -489,14 +491,23 @@ void InitRPC(int num_sock)
   /* Allocate resources that are based on the maximum number of open file descriptors */
   Xports = (SVCXPRT **) Mem_Alloc_Label(num_sock * sizeof(SVCXPRT *), "Xports array");
   if(Xports == NULL)
-    LogFatal(COMPONENT_RPC,
-             "Xports array allocation failed");
-
+    LogFatal(COMPONENT_RPC, "Xports array allocation failed");
   memset(Xports, 0, num_sock * sizeof(SVCXPRT *));
+
   mutex_cond_xprt = (pthread_mutex_t *) Mem_Alloc_Label(num_sock * sizeof(pthread_mutex_t ), "mutex_cond_xprt array");
+  if(mutex_cond_xprt == NULL)
+    LogFatal(COMPONENT_RPC, "mutex_cond_xprt array allocation failed");
   memset(mutex_cond_xprt, 0, num_sock * sizeof(pthread_mutex_t ));
+
   condvar_xprt = (pthread_cond_t *) Mem_Alloc_Label(num_sock * sizeof(pthread_cond_t ), "condvar_xprt array");
+  if( condvar_xprt == NULL)
+    LogFatal(COMPONENT_RPC, "condvar_xprt array allocation failed");
   memset(condvar_xprt, 0, num_sock * sizeof(pthread_cond_t ));
+
+  TCP_DRC_HashTables = (hash_table_t **)Mem_Alloc_Label(num_sock * sizeof( hash_table_t * ), "TCP DRC Hash Array");
+  if( TCP_DRC_HashTables == NULL )
+    LogFatal(COMPONENT_RPC, "TCP_DRC_HashTables array allocation failed");
+  memset(TCP_DRC_HashTables, 0, num_sock * sizeof(hash_table_t *));
 
   FD_ZERO(&Svc_fdset);
 
