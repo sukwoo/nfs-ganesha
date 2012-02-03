@@ -100,9 +100,11 @@
 #define NB_PREALLOC_LRU_WORKER 100
 #define NB_REQUEST_BEFORE_GC 50
 #define PRIME_DUPREQ 17         /* has to be a prime number */
+#define PRIME_DUPREQ_TCP 3         /* has to be a prime number */
 #define PRIME_ID_MAPPER 17      /* has to be a prime number */
 #define DUPREQ_EXPIRATION 180
 #define NB_PREALLOC_HASH_DUPREQ 100
+#define NB_PREALLOC_HASH_DUPREQ_TCP 10
 #define NB_PREALLOC_LRU_DUPREQ 100
 #define NB_PREALLOC_GC_DUPREQ 100
 #define NB_PREALLOC_ID_MAPPER 200
@@ -348,6 +350,7 @@ typedef struct nfs_param__
   nfs_core_parameter_t core_param;
   nfs_worker_parameter_t worker_param;
   nfs_rpc_dupreq_parameter_t dupreq_param;
+  nfs_rpc_dupreq_parameter_t dupreq_tcp_param;
   nfs_ip_name_parameter_t ip_name_param;
   nfs_idmap_cache_parameter_t uidmap_cache_param;
   nfs_idmap_cache_parameter_t gidmap_cache_param;

@@ -87,7 +87,7 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
   fridge_entry_t * pfe = NULL;
   process_status_t status;
   hash_table_t * ht_sock = NULL ;
-
+  
   snprintf(my_name, MAXNAMLEN, "tcp_sock_mgr#fd=%ld", tcp_sock);
   SetNameFunction(my_name);
 
@@ -112,7 +112,7 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
            (caddr_t) pthread_self());
 
   /* Init the hash table for TCP DRC associated with this connection */
-  if((ht_sock = HashTable_Init(nfs_param.dupreq_param.hash_param)) == NULL)
+  if((ht_sock = HashTable_Init(nfs_param.dupreq_tcp_param.hash_param)) == NULL)
     {
       LogCrit(COMPONENT_DUPREQ,
               "Cannot init the duplicate request hash table for socket %u", tcp_sock);
@@ -178,6 +178,11 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
   /* Fridge expiration, the thread and exit */
   LogDebug(COMPONENT_DISPATCH,
            "TCP connection manager has expired in the fridge, stopping");
+           
+  printf( "TCP connection manager has expired in the fridge, stopping\n");
+
+  /* Destroy ressources associated with ht_sock */
+  HashTable_Print( ht_sock ) ;
 
 #ifndef _NO_BUDDY_SYSTEM
   /* Free stuff allocated by BuddyMalloc before thread exists */
