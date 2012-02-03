@@ -514,7 +514,8 @@ typedef struct nfs_worker_data__
   sockaddr_t hostaddr;
   unsigned int gc_in_progress;
   unsigned int current_xid;
-  fsal_op_context_t thread_fsal_context;
+  struct user_cred user_credentials;
+
   /* Description of current or most recent function processed and start time (or 0) */
   const nfs_function_desc_t *pfuncdesc;
   struct timeval timer_start;
