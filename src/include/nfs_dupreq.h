@@ -78,6 +78,7 @@ typedef struct dupreq_entry__
   sockaddr_t addr;
   int checksum;
   int ipproto ;
+  uint64_t counter ;
 
   pthread_mutex_t dupreq_mutex;
   int processing; /* if currently being processed, this should be = 1 */
@@ -131,7 +132,10 @@ nfs_res_t nfs_dupreq_tcp_get(long xid, struct svc_req *ptr_req, SVCXPRT *xprt, i
 unsigned long dupreq_value_hash_func(hash_parameter_t * p_hparam,
                                      hash_buffer_t * buffclef);
 unsigned long dupreq_rbt_hash_func(hash_parameter_t * p_hparam, hash_buffer_t * buffclef);
+unsigned long dupreq_tcp_rbt_hash_func( hash_parameter_t * p_hparam, hash_buffer_t * buffclef) ;
 void nfs_dupreq_get_stats(hash_stat_t * phstat_udp, hash_stat_t * phstat_tcp ) ;
+void nfs_tcp_dupreq_gc( int fd ) ;
+
 
 
 #define DUPREQ_SUCCESS             0

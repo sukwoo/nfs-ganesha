@@ -393,11 +393,11 @@ void nfs_set_param_default()
   nfs_param.dupreq_param.hash_param.name = "Duplicate Request Cache";
 
   /* Worker parameters : dupreq tcp hash table */
-  nfs_param.dupreq_tcp_param.hash_param.index_size = PRIME_DUPREQ_TCP;
+  nfs_param.dupreq_tcp_param.hash_param.index_size = 1 ;
   nfs_param.dupreq_tcp_param.hash_param.alphabet_length = 10;    /* Xid is a numerical decimal value */
   nfs_param.dupreq_tcp_param.hash_param.nb_node_prealloc = NB_PREALLOC_HASH_DUPREQ_TCP;
   nfs_param.dupreq_tcp_param.hash_param.hash_func_key = dupreq_value_hash_func;
-  nfs_param.dupreq_tcp_param.hash_param.hash_func_rbt = dupreq_rbt_hash_func;
+  nfs_param.dupreq_tcp_param.hash_param.hash_func_rbt = dupreq_tcp_rbt_hash_func;
   nfs_param.dupreq_tcp_param.hash_param.compare_key = compare_req;
   nfs_param.dupreq_tcp_param.hash_param.key_to_str = display_req_key;
   nfs_param.dupreq_tcp_param.hash_param.val_to_str = display_req_val;

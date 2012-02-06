@@ -390,6 +390,11 @@ int clean_entry_dupreq_udp(LRU_entry_t * pentry, void *addparam)
  * @see HashTable_Init
  *
  */
+unsigned long dupreq_tcp_rbt_hash_func( hash_parameter_t * p_hparam, hash_buffer_t * buffclef) 
+{
+   return 0 ; /* Use only one RBT per socket */
+}
+
 unsigned long dupreq_value_hash_func(hash_parameter_t * p_hparam,
                                      hash_buffer_t * buffclef)
 {
@@ -818,3 +823,24 @@ void nfs_dupreq_get_stats(hash_stat_t * phstat_udp, hash_stat_t * phstat_tcp )
   HashTable_GetStats(ht_dupreq_udp, phstat_udp);
   //HashTable_GetStats(ht_dupreq_tcp, phstat_tcp);
 }                               /* nfs_dupreq_get_stats */
+
+void nfs_tcp_dupreq_gc( int fd )
+{
+  struct rbt_node *it;
+  struct rbt_head *tete_rbt;
+  hash_data_t *pdata = NULL;
+
+  tete_rbt = &((TCP_DRC_HashTables[fd])->array_rbt[0]) ;
+
+  printf( "I am in \n" ) ;
+
+  RBT_LOOP(tete_rbt, it)
+    {
+        pdata = (hash_data_t *) it->rbt_opaq;
+
+        printf( "entry_found\n" ) ;
+        RBT_INCREMENT(it);
+    }
+
+} /* nfs_tcp_dupreq_gc */
+

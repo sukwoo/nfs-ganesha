@@ -100,7 +100,6 @@
 #define NB_PREALLOC_LRU_WORKER 100
 #define NB_REQUEST_BEFORE_GC 50
 #define PRIME_DUPREQ 17         /* has to be a prime number */
-#define PRIME_DUPREQ_TCP 3         /* has to be a prime number */
 #define PRIME_ID_MAPPER 17      /* has to be a prime number */
 #define DUPREQ_EXPIRATION 180
 #define NB_PREALLOC_HASH_DUPREQ 100

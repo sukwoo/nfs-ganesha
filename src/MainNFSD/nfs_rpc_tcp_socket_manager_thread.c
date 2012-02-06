@@ -173,6 +173,8 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
 
           continue;
         }
+
+      nfs_tcp_dupreq_gc( tcp_sock ) ;
     }
 
   /* Fridge expiration, the thread and exit */
@@ -181,8 +183,11 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
            
   printf( "TCP connection manager has expired in the fridge, stopping\n");
 
-  /* Destroy ressources associated with ht_sock */
-  HashTable_Print( ht_sock ) ;
+  /* No more tcp dupreq hash table */
+  if( HashTable_Destroy(  ht_sock, NULL ) == HASHTABLE_SUCCESS )
+   LogDebug( COMPONENT_DISPATCH, "Ok cleaning TCP dupreq hash table for socket %ld", tcp_sock ) ;
+  else
+   LogMajor( COMPONENT_DISPATCH, "Failure while cleaning RCP dupreq hash table for dead tcp_scok_mgr#fd=%ld", tcp_sock ) ;
 
 #ifndef _NO_BUDDY_SYSTEM
   /* Free stuff allocated by BuddyMalloc before thread exists */
