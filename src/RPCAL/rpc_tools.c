@@ -77,6 +77,7 @@ SVCXPRT **Xports;
 fd_set Svc_fdset;
 
 hash_table_t ** TCP_DRC_HashTables;
+atomic_counter_t * TCP_DRC_acount;
 
 const char *str_sock_type(int st)
 {
@@ -508,6 +509,11 @@ void InitRPC(int num_sock)
   if( TCP_DRC_HashTables == NULL )
     LogFatal(COMPONENT_RPC, "TCP_DRC_HashTables array allocation failed");
   memset(TCP_DRC_HashTables, 0, num_sock * sizeof(hash_table_t *));
+
+  TCP_DRC_acount = (atomic_counter_t *)Mem_Alloc_Label(num_sock * sizeof( atomic_counter_t ), "TCP DRC atomic counters");
+  if( TCP_DRC_acount == NULL )
+    LogFatal(COMPONENT_RPC, "TCP_DRC_ atomic counters array allocation failed");
+  memset(TCP_DRC_acount, 0, num_sock * sizeof(atomic_counter_t));
 
   FD_ZERO(&Svc_fdset);
 

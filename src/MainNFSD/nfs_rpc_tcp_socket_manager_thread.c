@@ -66,6 +66,7 @@
 #include "nfs_file_handle.h"
 #include "nfs_stat.h"
 #include "SemN.h"
+#include "atomic_counter.h" 
 
 /**
  * rpc_tcp_socket_manager_thread: manages a TCP socket connected to a client.
@@ -87,7 +88,7 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
   fridge_entry_t * pfe = NULL;
   process_status_t status;
   hash_table_t * ht_sock = NULL ;
-  
+   
   snprintf(my_name, MAXNAMLEN, "tcp_sock_mgr#fd=%ld", tcp_sock);
   SetNameFunction(my_name);
 
@@ -115,10 +116,13 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
   if((ht_sock = HashTable_Init(nfs_param.dupreq_tcp_param.hash_param)) == NULL)
     {
       LogCrit(COMPONENT_DUPREQ,
-              "Cannot init the duplicate request hash table for socket %u", tcp_sock);
-      return -1;
+              "Cannot init the duplicate request hash table for socket %lu", tcp_sock);
+      return NULL;
     }
   TCP_DRC_HashTables[tcp_sock] = ht_sock ; 
+
+  /* Init the atomic counter */
+  atomic_counter_init( &TCP_DRC_acount[tcp_sock] ) ;
 
   for(;;)
     {

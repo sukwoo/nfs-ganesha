@@ -32,6 +32,7 @@ libsupport_la_SOURCES =  nfs_export_list.c                  \
                          exports.c                          \
                          fridgethr.c                        \
                          lookup3.c                          \
+                         atomic_counter.c                   \
                          ../include/nfs_file_handle.h       \
                          ../include/nfs_core.h              \
                          ../include/nfs_tools.h             \

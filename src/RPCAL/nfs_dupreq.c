@@ -86,6 +86,7 @@ extern nfs_function_desc_t rquota2_func_desc[];
 /* Structure used for duplicated request cache */
 hash_table_t *ht_dupreq_udp;
 extern hash_table_t ** TCP_DRC_HashTables ;
+extern atomic_counter_t * TCP_DRC_acount ;
 
 void LogDupReq(const char *label, sockaddr_t *addr, long xid, u_long rq_prog)
 {
@@ -669,6 +670,10 @@ int nfs_dupreq_add_not_finished(long xid,
   buffdata.pdata = (caddr_t) pdupreq;
   buffdata.len = sizeof(dupreq_entry_t);
 
+  /* Manage TCP sock counter */
+  if( pdupreq->ipproto ==IPPROTO_TCP) 
+     pdupreq->counter = atomic_counter_get_and_increment( &TCP_DRC_acount[xprt->xp_fd] ) ;
+   
   LogDupReq("Add Not Finished", &pdupreq->addr, pdupreq->xid, pdupreq->rq_prog);
 
   status = HashTable_Test_And_Set(ht_dupreq, &buffkey, &buffdata,
@@ -824,23 +829,38 @@ void nfs_dupreq_get_stats(hash_stat_t * phstat_udp, hash_stat_t * phstat_tcp )
   //HashTable_GetStats(ht_dupreq_tcp, phstat_tcp);
 }                               /* nfs_dupreq_get_stats */
 
+#define DELTA_GC 10 
+#define DELTA_GC2 10 
+
 void nfs_tcp_dupreq_gc( int fd )
 {
   struct rbt_node *it;
   struct rbt_head *tete_rbt;
   hash_data_t *pdata = NULL;
+  uint64_t current_counter =  atomic_counter_get( &(TCP_DRC_acount[fd] ) ) ;
+  hash_data_t * tabdel[DELTA_GC] ;
+  unsigned int delcount = 0 ;
+  unsigned int i = 0 ;
 
+  /* Only one RBT in this kind of HashTable */
   tete_rbt = &((TCP_DRC_HashTables[fd])->array_rbt[0]) ;
-
-  printf( "I am in \n" ) ;
 
   RBT_LOOP(tete_rbt, it)
     {
         pdata = (hash_data_t *) it->rbt_opaq;
 
-        printf( "entry_found\n" ) ;
+        if( ( current_counter - (((dupreq_entry_t *)pdata->buffval.pdata)->counter) ) > DELTA_GC2 )
+         {
+            tabdel[delcount++] = pdata ;
+            printf( "il faut effacer %p\n", pdata->buffval.pdata ) ;
+
+            if( delcount == DELTA_GC ) break ;
+         }
         RBT_INCREMENT(it);
     }
+
+  for( i = 0 ; i < delcount ; i++ )
+    HashTable_Del( TCP_DRC_HashTables[fd], &(pdata->buffkey) , NULL, NULL ) ;
 
 } /* nfs_tcp_dupreq_gc */
 
