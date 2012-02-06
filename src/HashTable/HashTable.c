@@ -878,7 +878,7 @@ int HashTable_Delall(hash_table_t * ht, int (*free_func)(hash_buffer_t, hash_buf
   hash_buffer_t p_usedbuffdata;
 
   /* Sanity check */
-  if (ht == NULL || free_func == NULL)
+  if (ht == NULL )
     return HASHTABLE_ERROR_INVALID_ARGUMENT;
 
   LogFullDebug(COMPONENT_HASHTABLE, "Deleting all entries in hashtable.");
@@ -915,7 +915,10 @@ int HashTable_Delall(hash_table_t * ht, int (*free_func)(hash_buffer_t, hash_buf
           ht->stat_dynamic[hashval].ok.nb_del += 1;
 
           /* Free the data that was being stored for key and value. */
-          rc = free_func(p_usedbuffkey, p_usedbuffdata);
+          if( free_func != NULL )
+            rc = free_func(p_usedbuffkey, p_usedbuffdata);
+          else
+            rc = 1 ;
 
           if (rc == 0)
             return HASHTABLE_ERROR_DELALL_FAIL;
@@ -925,6 +928,35 @@ int HashTable_Delall(hash_table_t * ht, int (*free_func)(hash_buffer_t, hash_buf
 
   return HASHTABLE_SUCCESS;  
 }
+
+/**
+ * 
+ * HashTable_Delall: Remove and free all (key,val) couples from the hashtable.
+ *
+ * Remove all (key,val) couples from the hashtable and free the stored data
+ * with a function provided as the second argument.
+ *
+ * @param ht the hashtable to be cleared of all entries.
+ * @param free_func the function with which to free the contents of each entry
+ *
+ * @return HASHTABLE_SUCCESS if successfull.
+ * @return HASHTABLE_ERROR_NO_SUCH_KEY is the key was not found.
+ *
+ */
+int HashTable_Destroy(hash_table_t * ht, int (*free_func)(hash_buffer_t, hash_buffer_t) )
+{
+   int rc = 0 ;
+
+   if( ( rc = HashTable_Delall( ht, free_func ) ) != HASHTABLE_SUCCESS )
+      return rc ;
+
+   /* All the items in the RBTs were freed, let's got rid off what remains */
+   Mem_Free( ht->array_lock ) ;
+   Mem_Free( ht->stat_dynamic ) ;
+   Mem_Free( ht->array_rbt ) ;
+
+   return HASHTABLE_SUCCESS ;
+} 
 
 /**
  * 
