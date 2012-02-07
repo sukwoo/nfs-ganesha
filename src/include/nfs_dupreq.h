@@ -145,7 +145,10 @@ void nfs_tcp_dupreq_gc( int fd ) ;
 #define DUPREQ_BEING_PROCESSED     3
 #define DUPREQ_ALREADY_EXISTS      4
 
-#define DUPREQ_TCP_K_LATEST       20 /* Remember this number of TCP dupreq per connection */
-#define DUPREQ_TCP_GC_PERIOD      100 /* How ofthen (number of rpc calls) should TCP DUPREQ be gc-ed ? */
+/* Remember this number of TCP dupreq per connection */
+#define DUPREQ_TCP_K_LATEST       20 
+
+ /* How ofthen (number of rpc calls) should TCP DUPREQ be gc-ed ? */
+#define DUPREQ_TCP_GC_PERIOD     5*DUPREQ_TCP_K_LATEST
 
 #endif                          /* _NFS_DUPREQ_H */
