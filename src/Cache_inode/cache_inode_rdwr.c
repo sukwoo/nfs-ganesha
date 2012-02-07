@@ -75,7 +75,7 @@
  * @param buffer write:[IN] read:[OUT] the buffer for the data.
  * @param ht [INOUT] the hashtable used for managing the cache.
  * @param pclient [IN]  ressource allocated by the client for the nfs management.
- * @param pcontext [IN] fsal context for the operation.
+ * @param creds [IN] fsal context for the operation.
  * @param stable[IN] if FALSE, data will be written to unstable storage (for implementing write/commit)
  * @pstatus [OUT] returned status.
  *
@@ -95,7 +95,7 @@ cache_inode_status_t cache_inode_rdwr(cache_entry_t * pentry,
                                       fsal_boolean_t * p_fsal_eof,
                                       hash_table_t * ht,
                                       cache_inode_client_t * pclient,
-                                      fsal_op_context_t * pcontext,
+                                      struct user_cred *creds,
                                       uint64_t stable, 
 				      cache_inode_status_t * pstatus)
 {
@@ -247,7 +247,7 @@ cache_inode_status_t cache_inode_rdwr(cache_entry_t * pentry,
                              p_fsal_eof,
                              &buffstat,
                              (cache_content_client_t *) pclient->pcontent_client,
-                             pcontext, &cache_content_status);
+                             &cache_content_status);
 
           /* If the entry under resync */
           if(cache_content_status == CACHE_CONTENT_LOCAL_CACHE_NOT_FOUND)
@@ -256,7 +256,7 @@ cache_inode_status_t cache_inode_rdwr(cache_entry_t * pentry,
               if(cache_content_new_entry(pentry,
                                          NULL,
                                          (cache_content_client_t *)pclient->pcontent_client, 
-                                         RENEW_ENTRY, pcontext,
+                                         RENEW_ENTRY,
                                          &cache_content_status) == NULL)
                 {
                   /* Entry could not be recoverd, cache_content_status contains an error, let it be managed by the next block */
@@ -283,7 +283,7 @@ cache_inode_status_t cache_inode_rdwr(cache_entry_t * pentry,
                                      p_fsal_eof,
                                      &buffstat,
                                      (cache_content_client_t *) pclient->pcontent_client,
-                                     pcontext, &cache_content_status);
+                                     &cache_content_status);
 
                   /* No management of cache_content_status in case of failure, this will be done
                    * within the next block */
@@ -332,7 +332,7 @@ cache_inode_status_t cache_inode_rdwr(cache_entry_t * pentry,
            */
           if(cache_inode_open(pentry,
                               pclient,
-                              openflags, pcontext, pstatus) != CACHE_INODE_SUCCESS)
+                              openflags, creds, pstatus) != CACHE_INODE_SUCCESS)
             {
               V_w(&pentry->lock);
 
@@ -461,12 +461,12 @@ cache_inode_status_t cache_inode_rdwr(cache_entry_t * pentry,
 
               /* WARNING: This operation is to be done AFTER FSAL_close (some FSAL, like POSIX,
                * may not flush data until the file is closed */
-
+/* FIXME: cut the struct copies w/ moving attributes to the handle...
+ */
               /*post_write_attr.asked_attributes =  pclient->attrmask ; */
               post_write_attr.asked_attributes = FSAL_ATTR_SIZE | FSAL_ATTR_SPACEUSED;
               fsal_status_getattr =
-                  FSAL_getattrs(&(pentry->handle), pcontext,
-                                &post_write_attr);
+                  pentry->handle->ops->getattrs(pentry->handle, &post_write_attr);
 
               /* if failed, the next block will handle the error */
               if(FSAL_IS_ERROR(fsal_status_getattr))
