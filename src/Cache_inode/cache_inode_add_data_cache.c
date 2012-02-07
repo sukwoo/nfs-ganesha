@@ -101,7 +101,7 @@ cache_inode_add_data_cache(cache_entry_t * pentry,
         }
     pcontent_client = (cache_content_client_t *) pclient->pcontent_client;
     pentry_content = cache_content_new_entry(pentry, NULL, pcontent_client,
-                                             ADD_ENTRY, pcontext,
+                                             ADD_ENTRY,
                                              &cache_content_status);
     if(pentry_content == NULL)
         {
