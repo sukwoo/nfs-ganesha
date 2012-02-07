@@ -82,7 +82,6 @@ cache_content_entry_t *cache_content_new_entry(cache_entry_t * pentry_inode,
                                                cache_content_spec_data_t * pspecdata,
                                                cache_content_client_t * pclient,
                                                cache_content_add_behaviour_t how,
-                                               fsal_op_context_t * pcontext,
                                                cache_content_status_t * pstatus)
 {
   cache_content_status_t status;
@@ -238,9 +237,9 @@ cache_content_entry_t *cache_content_new_entry(cache_entry_t * pentry_inode,
     {
       /* Get the file content from the FSAL, populate the data cache */
       if(pclient->flush_force_fsal == 0)
-        cache_content_refresh(pfc_pentry, pclient, pcontext, DEFAULT_REFRESH, &status);
+        cache_content_refresh(pfc_pentry, pclient, DEFAULT_REFRESH, &status);
       else
-        cache_content_refresh(pfc_pentry, pclient, pcontext, FORCE_FROM_FSAL, &status);
+        cache_content_refresh(pfc_pentry, pclient, FORCE_FROM_FSAL, &status);
 
       if(status != CACHE_CONTENT_SUCCESS)
         {
