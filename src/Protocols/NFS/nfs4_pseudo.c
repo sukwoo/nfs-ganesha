@@ -1941,7 +1941,7 @@ int nfs4_op_readdir_pseudo(struct nfs_argop4 *op,
                                          data->pexport->cache_inode_policy,
                                          data->ht,
                                          ((cache_inode_client_t *) data->pclient),
-                                         data->pcontext, &cache_status)) == NULL)
+                                         &cache_status)) == NULL)
         {
           LogMajor(COMPONENT_NFS_V4_PSEUDO,
                    "PSEUDO FS JUNCTION TRAVERSAL: /!\\ | Allocate root entry in cache inode failed, for %s, id=%d",
@@ -1955,7 +1955,7 @@ int nfs4_op_readdir_pseudo(struct nfs_argop4 *op,
                              &attr,
                              data->ht,
                              ((cache_inode_client_t *) data->pclient),
-                             data->pcontext, &cache_status) != CACHE_INODE_SUCCESS)
+                             &cache_status) != CACHE_INODE_SUCCESS)
         {
           LogMajor(COMPONENT_NFS_V4_PSEUDO,
                    "PSEUDO FS JUNCTION TRAVERSAL: /!\\ | Failed to get attributes for root pentry");
