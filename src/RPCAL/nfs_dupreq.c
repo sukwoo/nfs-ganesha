@@ -838,7 +838,7 @@ void nfs_tcp_dupreq_gc( int fd )
   struct rbt_head *tete_rbt;
   hash_data_t *pdata = NULL;
   uint64_t current_counter =  atomic_counter_get( &(TCP_DRC_acount[fd] ) ) ;
-  hash_data_t * tabdel[DELTA_GC] ;
+  hash_data_t * tabdel[DUPREQ_TCP_K_LATEST] ;
   unsigned int delcount = 0 ;
   unsigned int i = 0 ;
 
@@ -849,7 +849,7 @@ void nfs_tcp_dupreq_gc( int fd )
     {
         pdata = (hash_data_t *) it->rbt_opaq;
 
-        if( ( current_counter - (((dupreq_entry_t *)pdata->buffval.pdata)->counter) ) > DELTA_GC2 )
+        if( ( current_counter - (((dupreq_entry_t *)pdata->buffval.pdata)->counter) ) > DUPREQ_TCP_K_LATEST )
          {
             tabdel[delcount++] = pdata ;
             printf( "il faut effacer %p\n", pdata->buffval.pdata ) ;

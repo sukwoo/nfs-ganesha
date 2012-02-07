@@ -76,7 +76,7 @@ uint64_t atomic_counter_get( atomic_counter_t * pac )
 void atomic_counter_increment( atomic_counter_t * pac )
 {
   pthread_mutex_lock( &pac->lock ) ;
-  pac->count += 1 ;
+  pac->count += 1 ; 
   pthread_mutex_unlock( &pac->lock ) ;
 } /* atomic_counter_increment */
 

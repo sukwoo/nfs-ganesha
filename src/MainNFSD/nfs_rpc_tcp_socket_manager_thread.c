@@ -88,6 +88,7 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
   fridge_entry_t * pfe = NULL;
   process_status_t status;
   hash_table_t * ht_sock = NULL ;
+  unsigned int passcount = 0 ;
    
   snprintf(my_name, MAXNAMLEN, "tcp_sock_mgr#fd=%ld", tcp_sock);
   SetNameFunction(my_name);
@@ -178,7 +179,11 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
           continue;
         }
 
-      nfs_tcp_dupreq_gc( tcp_sock ) ;
+      if( passcount++ > DUPREQ_TCP_GC_PERIOD )
+        {
+          nfs_tcp_dupreq_gc( tcp_sock ) ;
+          passcount = 0 ;
+        }
     }
 
   /* Fridge expiration, the thread and exit */
