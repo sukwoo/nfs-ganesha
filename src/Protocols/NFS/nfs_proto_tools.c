@@ -159,6 +159,8 @@ void nfs_FhandleToStr(u_long     rq_vers,
  * @return a pointer to the related pentry if successful, NULL is returned in case of a failure.
  *
  */
+/* FIXME: clean out the rest of pcontext once FhandleToFSAL bits done.
+ */
 cache_entry_t *nfs_FhandleToCache(u_long rq_vers,
                                   fhandle2 * pfh2,
                                   nfs_fh3 * pfh3,
@@ -215,7 +217,7 @@ cache_entry_t *nfs_FhandleToCache(u_long rq_vers,
 
   if((pentry = cache_inode_get(&fsal_data,
                                CACHE_INODE_JOKER_POLICY,
-                               &attr, ht, pclient, pcontext, &cache_status)) == NULL)
+                               &attr, ht, pclient, &cache_status)) == NULL)
     {
       switch (rq_vers)
         {
@@ -818,9 +820,6 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
   int statfscalled = 0;
   struct fsal_export *export = pexport->export_hdl;
   fsal_dynamicfsinfo_t dynamicinfo;
-
-  if( data != NULL ) /* data can be NULL if called from FSAL_PROXY operating as a client */
-    pstaticinfo = data->pcontext->export_context->fe_static_fs_info;
 
 #ifdef _USE_NFS4_ACL
   int rc;
@@ -1650,15 +1649,15 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
         case FATTR4_FS_LAYOUT_TYPES:
 #ifdef _USE_FSALMDS
           *((uint32_t*)(attrvalsBuffer+LastOffset))
-            = htonl(pstaticinfo->fs_layout_types
+		  = htonl(export->ops->fs_layout_types(export)
                     .fattr4_fs_layout_types_len);
 
           LastOffset += sizeof(uint32_t);
-          for (k = 0; k < (pstaticinfo->fs_layout_types
+          for (k = 0; k < (export->ops->fs_layout_types(export)
                            .fattr4_fs_layout_types_len); k++)
             {
               *((layouttype4*)(attrvalsBuffer+LastOffset))
-                = htonl((pstaticinfo->fs_layout_types
+                = htonl((export->ops->fs_layout_types(export)
                          .fattr4_fs_layout_types_val[k]));
               LastOffset += sizeof(layouttype4);
             }
@@ -1670,7 +1669,7 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
 #ifdef _USE_FSALMDS
         case FATTR4_LAYOUT_BLKSIZE:
           layout_blksize
-            = htonl((fattr4_layout_blksize) pstaticinfo->layout_blksize);
+		  = htonl((fattr4_layout_blksize) export->ops->layout_blksize(export));
           memcpy((char *)(attrvalsBuffer + LastOffset),
                  &layout_blksize, sizeof(fattr4_layout_blksize));
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
