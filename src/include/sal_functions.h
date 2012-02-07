@@ -171,7 +171,6 @@ int Init_nlm_hash(void);
  ******************************************************************************/
 
 int nfs4_BuildStateId_Other(cache_entry_t     * pentry,
-                            fsal_op_context_t * pcontext,
                             state_owner_t     * popen_owner,
                             char              * other);
 
@@ -295,7 +294,6 @@ void LogLock(log_components_t     component,
              log_levels_t         debug,
              const char         * reason, 
              cache_entry_t      * pentry,
-             fsal_op_context_t  * pcontext,
              state_owner_t      * powner,
              fsal_lock_param_t  * plock);
 
@@ -330,8 +328,7 @@ state_status_t state_find_grant(void                  * pcookie,
                                 cache_inode_client_t  * pclient,
                                 state_status_t        * pstatus);
 
-void state_complete_grant(fsal_op_context_t    * pcontext,
-                          state_cookie_entry_t * cookie_entry,
+void state_complete_grant(state_cookie_entry_t * cookie_entry,
                           cache_inode_client_t * pclient);
 
 /**
@@ -352,7 +349,7 @@ state_status_t state_release_grant(fsal_op_context_t    * pcontext,
 #endif
 
 state_status_t state_test(cache_entry_t        * pentry,
-                          fsal_op_context_t    * pcontext,
+                          struct user_cred     * creds,
                           state_owner_t        * powner,
                           fsal_lock_param_t    * plock,
                           state_owner_t       ** holder,   /* owner that holds conflicting lock */
@@ -361,7 +358,7 @@ state_status_t state_test(cache_entry_t        * pentry,
                           state_status_t       * pstatus);
 
 state_status_t state_lock(cache_entry_t         * pentry,
-                          fsal_op_context_t     * pcontext,
+                          struct user_cred      * creds,
                           state_owner_t         * powner,
                           state_t               * pstate,
                           state_blocking_t        blocking,
@@ -373,7 +370,6 @@ state_status_t state_lock(cache_entry_t         * pentry,
                           state_status_t        * pstatus);
 
 state_status_t state_unlock(cache_entry_t        * pentry,
-                            fsal_op_context_t    * pcontext,
                             state_owner_t        * powner,
                             state_t              * pstate,
                             fsal_lock_param_t    * plock,
@@ -412,7 +408,6 @@ state_status_t state_add(cache_entry_t         * pentry,
                          state_data_t          * pstate_data,
                          state_owner_t         * powner_input,
                          cache_inode_client_t  * pclient,
-                         fsal_op_context_t     * pcontext,
                          state_t              ** ppstate,
                          state_status_t        * pstatus);
 
