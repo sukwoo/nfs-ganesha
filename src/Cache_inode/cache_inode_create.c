@@ -88,7 +88,7 @@ cache_inode_create(cache_entry_t * pentry_parent,
                    fsal_attrib_list_t * pattr,
                    hash_table_t * ht,
                    cache_inode_client_t * pclient,
-                   fsal_op_context_t * pcontext,
+                   struct user_cred *creds,
                    cache_inode_status_t * pstatus)
 {
     cache_entry_t *pentry = NULL;
@@ -143,7 +143,7 @@ cache_inode_create(cache_entry_t * pentry_parent,
                                      FSAL_ACE_PERM_ADD_SUBDIRECTORY);
     status = cache_inode_access(pentry_parent,
                                 access_mask, ht,
-                                pclient, pcontext, &status);
+                                pclient, creds, &status);
     if (status != CACHE_INODE_SUCCESS)
         {
             *pstatus = status;
@@ -163,7 +163,7 @@ cache_inode_create(cache_entry_t * pentry_parent,
                                  &object_attributes,
                                  ht, 
                                  pclient, 
-                                 pcontext, 
+                                 creds, 
                                  pstatus);
     if (pentry != NULL)
         {
@@ -199,8 +199,8 @@ cache_inode_create(cache_entry_t * pentry_parent,
     dir_handle = pentry_parent->handle;
 /* we pass in attributes to the create.  We will get them back below */
     object_attributes.asked_attributes = pclient->attrmask;
-    object_attributes.owner = pcontext->credential.user;
-    object_attributes.group = pcontext->credential.group; /* be more selective? */
+    object_attributes.owner = creds->caller_uid;
+    object_attributes.group = creds->caller_gid; /* be more selective? */
     object_attributes.mode = mode;
 
     switch (type)
@@ -379,7 +379,6 @@ cache_inode_create(cache_entry_t * pentry_parent,
                                             pcreate_arg, NULL,
                                             ht, 
                                             pclient, 
-                                            pcontext,
                                             TRUE, /* This is a creation and not a population */
                                             pstatus);
             if (pentry == NULL)
@@ -403,8 +402,7 @@ cache_inode_create(cache_entry_t * pentry_parent,
                                                    ht,
 						   &new_dir_entry,
                                                    pclient,
-						   pcontext,
-                                                   pstatus);
+						   pstatus);
             if (status != CACHE_INODE_SUCCESS)
                 {
                     V_w(&pentry_parent->lock);
@@ -445,6 +443,9 @@ cache_inode_create(cache_entry_t * pentry_parent,
        return pentry;
 }
 
+#if 0
+/* FIXME: unused, deprecate
+ */
 /**
  *
  * cache_inode_create_open: creates a file and opens it at the same time (for NFSv4 semantics)
@@ -485,3 +486,5 @@ cache_inode_create_open(cache_entry_t * pentry_parent,
 {
     return NULL;
 }
+
+#endif
