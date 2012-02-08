@@ -845,6 +845,7 @@ void nfs_tcp_dupreq_gc( int fd )
   /* Only one RBT in this kind of HashTable */
   tete_rbt = &((TCP_DRC_HashTables[fd])->array_rbt[0]) ;
 
+  P_r( &((TCP_DRC_HashTables[fd])->array_lock[0]));
   RBT_LOOP(tete_rbt, it)
     {
         pdata = (hash_data_t *) it->rbt_opaq;
@@ -858,6 +859,7 @@ void nfs_tcp_dupreq_gc( int fd )
          }
         RBT_INCREMENT(it);
     }
+  V_r( &((TCP_DRC_HashTables[fd])->array_lock[0]));
 
   for( i = 0 ; i < delcount ; i++ )
     HashTable_Del( TCP_DRC_HashTables[fd], &(pdata->buffkey) , NULL, NULL ) ;
