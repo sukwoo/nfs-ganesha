@@ -829,8 +829,6 @@ void nfs_dupreq_get_stats(hash_stat_t * phstat_udp, hash_stat_t * phstat_tcp )
   //HashTable_GetStats(ht_dupreq_tcp, phstat_tcp);
 }                               /* nfs_dupreq_get_stats */
 
-#define DELTA_GC 10 
-#define DELTA_GC2 10 
 
 void nfs_tcp_dupreq_gc( int fd )
 {
@@ -845,6 +843,10 @@ void nfs_tcp_dupreq_gc( int fd )
   /* Only one RBT in this kind of HashTable */
   tete_rbt = &((TCP_DRC_HashTables[fd])->array_rbt[0]) ;
 
+  /* Manage race condition */
+  if( tete_rbt == NULL ) 
+    return ;
+
   P_r( &((TCP_DRC_HashTables[fd])->array_lock[0]));
   RBT_LOOP(tete_rbt, it)
     {
@@ -855,7 +857,7 @@ void nfs_tcp_dupreq_gc( int fd )
             tabdel[delcount++] = pdata ;
             printf( "il faut effacer %p\n", pdata->buffval.pdata ) ;
 
-            if( delcount == DELTA_GC ) break ;
+            if( delcount == DUPREQ_TCP_K_LATEST ) break ;
          }
         RBT_INCREMENT(it);
     }
