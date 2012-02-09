@@ -907,12 +907,16 @@ process_status_t process_rpc_request(SVCXPRT *xprt)
 
       P(pnfsreq->req_done_mutex);
       /* Regular management of the request (UDP request or TCP request on connected handler */
-      DispatchWorkNFS(pnfsreq, worker_index);
-
-      LogInfo(COMPONENT_DISPATCH, "Waiting for completion of request");
-      pthread_cond_wait(&pnfsreq->req_done_condvar, &pnfsreq->req_done_mutex);
-      V(pnfsreq->req_done_mutex);
-      LogInfo(COMPONENT_DISPATCH, "Request processing has completed");
+      /* DispatchWorkNFS returns 1 is request is managed by a worker, 0 otherwise (DRC TCP hit) */
+      if( DispatchWorkNFS(pnfsreq, worker_index) )
+        {
+           LogInfo(COMPONENT_DISPATCH, "Waiting for completion of request");
+           pthread_cond_wait(&pnfsreq->req_done_condvar, &pnfsreq->req_done_mutex);
+           V(pnfsreq->req_done_mutex);
+           LogInfo(COMPONENT_DISPATCH, "Request processing has completed");
+        }
+      else
+         LogInfo(COMPONENT_DISPATCH, "TCP DRC hit on this request" ) ;
 
       gettimeofday(&timer_end, NULL);
       timer_diff = time_diff(timer_start, timer_end);

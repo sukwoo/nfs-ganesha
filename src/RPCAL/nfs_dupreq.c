@@ -85,7 +85,8 @@ extern nfs_function_desc_t rquota2_func_desc[];
 #endif                          /* _USE_QUOTA */
 /* Structure used for duplicated request cache */
 hash_table_t *ht_dupreq_udp;
-hash_table_t *ht_dupreq_tcp;
+extern hash_table_t ** TCP_DRC_HashTables ;
+extern atomic_counter_t * TCP_DRC_acount ;
 
 void LogDupReq(const char *label, sockaddr_t *addr, long xid, u_long rq_prog)
 {
@@ -167,7 +168,7 @@ static unsigned int get_ipproto_by_xprt( SVCXPRT * xprt )
 
 static hash_table_t * get_ht_by_xprt( SVCXPRT * xprt )
 {
-   return (get_ipproto_by_xprt( xprt )==IPPROTO_UDP)?ht_dupreq_udp:ht_dupreq_tcp ;
+   return (get_ipproto_by_xprt( xprt )==IPPROTO_UDP)?ht_dupreq_udp:TCP_DRC_HashTables[xprt->xp_fd] ;
 }
 
 
@@ -342,9 +343,9 @@ int nfs_dupreq_delete(long xid, struct svc_req *ptr_req, SVCXPRT *xprt,
 
 /**
  *
- * clean_entry_dupreq: cleans an entry in the dupreq cache.
+ * clean_entry_dupreq_udp: cleans an entry in the UDP dupreq cache.
  *
- * cleans an entry in the dupreq cache.
+ * cleans an entry in the UDP dupreq cache.
  *
  * @param pentry [INOUT] entry to be cleaned.
  * @param addparam [IN] additional parameter used for cleaning.
@@ -352,13 +353,12 @@ int nfs_dupreq_delete(long xid, struct svc_req *ptr_req, SVCXPRT *xprt,
  * @return 0 if ok, other values mean an error.
  *
  */
-int clean_entry_dupreq(LRU_entry_t * pentry, void *addparam)
+int clean_entry_dupreq_udp(LRU_entry_t * pentry, void *addparam)
 {
   hash_buffer_t buffkey;
   struct prealloc_pool *dupreq_pool = (struct prealloc_pool *) addparam;
   dupreq_entry_t *pdupreq = (dupreq_entry_t *) (pentry->buffdata.pdata);
   dupreq_key_t dupkey;
-  hash_table_t * ht_dupreq = NULL ;
   
   /* Get the socket address for the key */
   memcpy((char *)&dupkey.addr, (char *)&pdupreq->addr, sizeof(dupkey.addr));
@@ -371,14 +371,9 @@ int clean_entry_dupreq(LRU_entry_t * pentry, void *addparam)
   buffkey.len = sizeof(dupreq_key_t);
 
   /* Get correct HT depending on proto used */
-  if( pdupreq->ipproto == IPPROTO_TCP )
-     ht_dupreq = ht_dupreq_tcp ;
-  else
-     ht_dupreq = ht_dupreq_udp ;
-
   LogDupReq("Garbage collection on", &pdupreq->addr, pdupreq->xid, pdupreq->rq_prog);
 
-  return _remove_dupreq(ht_dupreq, &buffkey, pdupreq, dupreq_pool, NFS_REQ_OK);
+  return _remove_dupreq(ht_dupreq_udp, &buffkey, pdupreq, dupreq_pool, NFS_REQ_OK);
 }                               /* clean_entry_dupreq */
 
 /**
@@ -396,6 +391,11 @@ int clean_entry_dupreq(LRU_entry_t * pentry, void *addparam)
  * @see HashTable_Init
  *
  */
+unsigned long dupreq_tcp_rbt_hash_func( hash_parameter_t * p_hparam, hash_buffer_t * buffclef) 
+{
+   return 0 ; /* Use only one RBT per socket */
+}
+
 unsigned long dupreq_value_hash_func(hash_parameter_t * p_hparam,
                                      hash_buffer_t * buffclef)
 {
@@ -530,16 +530,65 @@ int nfs_Init_dupreq(nfs_rpc_dupreq_parameter_t param)
       return -1;
     }
 
-  if((ht_dupreq_tcp = HashTable_Init(param.hash_param)) == NULL)
-    {
-      LogCrit(COMPONENT_DUPREQ,
-              "Cannot init the duplicate request hash table");
-      return -1;
-    }
-
-
   return DUPREQ_SUCCESS;
 }                               /* nfs_Init_dupreq */
+
+/**
+ *
+ * nfs_dupreq_get: Tries to get a duplicated requests for dupreq cache
+ *
+ * Tries to get a duplicated requests for dupreq cache.
+ *
+ * @param xid [IN] the transfer id we are looking for
+ * @param pstatus [OUT] the pointer to the status for the operation
+ *
+ * @return the result previously set if *pstatus == DUPREQ_SUCCESS
+ *
+ */
+nfs_res_t nfs_dupreq_get(long xid, struct svc_req *ptr_req, SVCXPRT *xprt, int *pstatus)
+{
+  hash_buffer_t buffkey;
+  hash_buffer_t buffval;
+  nfs_res_t res_nfs;
+  dupreq_key_t dupkey;
+  hash_table_t * ht_dupreq = NULL ;
+
+  /* Get correct HT depending on proto used */
+  ht_dupreq = get_ht_by_xprt( xprt ) ;
+
+  memset(&res_nfs, 0, sizeof(res_nfs));
+
+  /* Get the socket address for the key */
+  if(copy_xprt_addr(&dupkey.addr, xprt) == 0)
+    {
+      *pstatus = DUPREQ_NOT_FOUND;
+      return res_nfs;
+    }
+
+  dupkey.xid = xid;
+  dupkey.checksum = 0;
+
+  /* I have to keep an integer as key, I wil use the pointer buffkey->pdata for this,
+   * this also means that buffkey->len will be 0 */
+  buffkey.pdata = (caddr_t) &dupkey;
+  buffkey.len = sizeof(dupreq_key_t);
+  if(HashTable_Get(ht_dupreq, &buffkey, &buffval) == HASHTABLE_SUCCESS)
+    {
+      dupreq_entry_t *pdupreq = (dupreq_entry_t *)buffval.pdata;
+      /* reset timestamp */
+      pdupreq->timestamp = time(NULL);
+
+      *pstatus = DUPREQ_SUCCESS;
+      res_nfs = pdupreq->res_nfs;
+      LogDupReq("Hit in the dupreq cache for", &pdupreq->addr, pdupreq->xid, pdupreq->rq_prog);
+    }
+  else
+    {
+      LogDupReq("Failed to get dupreq entry", &dupkey.addr, dupkey.xid, ptr_req->rq_prog);
+      *pstatus = DUPREQ_NOT_FOUND;
+    }
+  return res_nfs;
+}                               /* nfs_dupreq_get */
 
 /**
  *
@@ -621,6 +670,10 @@ int nfs_dupreq_add_not_finished(long xid,
   buffdata.pdata = (caddr_t) pdupreq;
   buffdata.len = sizeof(dupreq_entry_t);
 
+  /* Manage TCP sock counter */
+  if( pdupreq->ipproto ==IPPROTO_TCP) 
+     pdupreq->counter = atomic_counter_get_and_increment( &TCP_DRC_acount[xprt->xp_fd] ) ;
+   
   LogDupReq("Add Not Finished", &pdupreq->addr, pdupreq->xid, pdupreq->rq_prog);
 
   status = HashTable_Test_And_Set(ht_dupreq, &buffkey, &buffdata,
@@ -728,66 +781,7 @@ int nfs_dupreq_finish(long xid,
 
 /**
  *
- * nfs_dupreq_get: Tries to get a duplicated requests for dupreq cache
- *
- * Tries to get a duplicated requests for dupreq cache.
- *
- * @param xid [IN] the transfer id we are looking for
- * @param pstatus [OUT] the pointer to the status for the operation
- *
- * @return the result previously set if *pstatus == DUPREQ_SUCCESS
- *
- */
-nfs_res_t nfs_dupreq_get(long xid, struct svc_req *ptr_req, SVCXPRT *xprt, int *pstatus)
-{
-  hash_buffer_t buffkey;
-  hash_buffer_t buffval;
-  nfs_res_t res_nfs;
-  dupreq_key_t dupkey;
-  hash_table_t * ht_dupreq = NULL ;
-
-  /* Get correct HT depending on proto used */
-  ht_dupreq = get_ht_by_xprt( xprt ) ;
- 
-
-  memset(&res_nfs, 0, sizeof(res_nfs));
-
-  /* Get the socket address for the key */
-  if(copy_xprt_addr(&dupkey.addr, xprt) == 0)
-    {
-      *pstatus = DUPREQ_NOT_FOUND;
-      return res_nfs;
-    }
-
-  dupkey.xid = xid;
-  dupkey.checksum = 0;
-
-  /* I have to keep an integer as key, I wil use the pointer buffkey->pdata for this,
-   * this also means that buffkey->len will be 0 */
-  buffkey.pdata = (caddr_t) &dupkey;
-  buffkey.len = sizeof(dupreq_key_t);
-  if(HashTable_Get(ht_dupreq, &buffkey, &buffval) == HASHTABLE_SUCCESS)
-    {
-      dupreq_entry_t *pdupreq = (dupreq_entry_t *)buffval.pdata;
-      /* reset timestamp */
-      pdupreq->timestamp = time(NULL);
-
-      *pstatus = DUPREQ_SUCCESS;
-      res_nfs = pdupreq->res_nfs;
-      LogDupReq(" dupreq_get: Hit in the dupreq cache for", &pdupreq->addr,
-		pdupreq->xid, pdupreq->rq_prog);
-    }
-  else
-    {
-      LogDupReq("Failed to get dupreq entry", &dupkey.addr, dupkey.xid, ptr_req->rq_prog);
-      *pstatus = DUPREQ_NOT_FOUND;
-    }
-  return res_nfs;
-}                               /* nfs_dupreq_get */
-
-/**
- *
- * nfs_dupreq_gc_function: Tests is an entry in dupreq cache is to be set invalid (has expired).
+ * nfs_dupreq_gc_udp_function: Tests is an entry in dupreq cache is to be set invalid (has expired).
  *
  * Tests is an entry in dupreq cache is to be set invalid (has expired).
  *
@@ -799,18 +793,22 @@ nfs_res_t nfs_dupreq_get(long xid, struct svc_req *ptr_req, SVCXPRT *xprt, int *
  * @see LRU_gc_invalid
  *
  */
-int nfs_dupreq_gc_function(LRU_entry_t * pentry, void *addparam)
+int nfs_dupreq_gc_udp_function(LRU_entry_t * pentry, void *addparam)
 {
   dupreq_entry_t *pdupreq = NULL;
 
   pdupreq = (dupreq_entry_t *) (pentry->buffdata.pdata);
+
+  /* Manage only UDP request */
+  if( pdupreq->ipproto != IPPROTO_UDP )
+   return LRU_LIST_DO_NOT_SET_INVALID ;
 
   /* Test if entry is expired */
   if(time(NULL) - pdupreq->timestamp > nfs_param.core_param.expiration_dupreq)
     return LRU_LIST_SET_INVALID;
 
   return LRU_LIST_DO_NOT_SET_INVALID;
-}                               /* nfs_dupreq_fc_function */
+}                               /* nfs_dupreq_gc_udp_function */
 
 /**
  *
@@ -828,5 +826,45 @@ int nfs_dupreq_gc_function(LRU_entry_t * pentry, void *addparam)
 void nfs_dupreq_get_stats(hash_stat_t * phstat_udp, hash_stat_t * phstat_tcp )
 {
   HashTable_GetStats(ht_dupreq_udp, phstat_udp);
-  HashTable_GetStats(ht_dupreq_tcp, phstat_tcp);
+  //HashTable_GetStats(ht_dupreq_tcp, phstat_tcp);
 }                               /* nfs_dupreq_get_stats */
+
+
+void nfs_tcp_dupreq_gc( int fd )
+{
+  struct rbt_node *it;
+  struct rbt_head *tete_rbt;
+  hash_data_t *pdata = NULL;
+  uint64_t current_counter =  atomic_counter_get( &(TCP_DRC_acount[fd] ) ) ;
+  hash_data_t * tabdel[DUPREQ_TCP_K_LATEST] ;
+  unsigned int delcount = 0 ;
+  unsigned int i = 0 ;
+
+  /* Only one RBT in this kind of HashTable */
+  tete_rbt = &((TCP_DRC_HashTables[fd])->array_rbt[0]) ;
+
+  /* Manage race condition */
+  if( tete_rbt == NULL ) 
+    return ;
+
+  P_r( &((TCP_DRC_HashTables[fd])->array_lock[0]));
+  RBT_LOOP(tete_rbt, it)
+    {
+        pdata = (hash_data_t *) it->rbt_opaq;
+
+        if( ( current_counter - (((dupreq_entry_t *)pdata->buffval.pdata)->counter) ) > DUPREQ_TCP_K_LATEST )
+         {
+            tabdel[delcount++] = pdata ;
+            printf( "il faut effacer %p\n", pdata->buffval.pdata ) ;
+
+            if( delcount == DUPREQ_TCP_K_LATEST ) break ;
+         }
+        RBT_INCREMENT(it);
+    }
+  V_r( &((TCP_DRC_HashTables[fd])->array_lock[0]));
+
+  for( i = 0 ; i < delcount ; i++ )
+    HashTable_Del( TCP_DRC_HashTables[fd], &(pdata->buffkey) , NULL, NULL ) ;
+
+} /* nfs_tcp_dupreq_gc */
+

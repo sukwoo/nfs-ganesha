@@ -28,6 +28,7 @@
 #endif
 
 #include "HashTable.h"
+#include "atomic_counter.h"
 
 void socket_setoptions(int socketFd);
 
@@ -144,9 +145,12 @@ enum auth_stat Rpcsecgss__authenticate(register struct svc_req *rqst,
 extern fd_set Svc_fdset;
 
 /* Declare the various RPC transport dynamic arrays */
-extern SVCXPRT         **Xports;
-extern pthread_mutex_t  *mutex_cond_xprt;
-extern pthread_cond_t   *condvar_xprt;
+extern SVCXPRT         ** Xports;
+extern pthread_mutex_t  * mutex_cond_xprt;
+extern pthread_cond_t   * condvar_xprt;
+extern hash_table_t    ** TCP_DRC_HashTables ;
+extern atomic_counter_t * TCP_DRC_acount;
+
 
 #ifdef _HAVE_GSSAPI
 void log_sperror_gss(char *outmsg, OM_uint32 maj_stat, OM_uint32 min_stat);

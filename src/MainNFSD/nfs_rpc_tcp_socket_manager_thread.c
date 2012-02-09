@@ -66,6 +66,7 @@
 #include "nfs_file_handle.h"
 #include "nfs_stat.h"
 #include "SemN.h"
+#include "atomic_counter.h" 
 
 /**
  * rpc_tcp_socket_manager_thread: manages a TCP socket connected to a client.
@@ -86,7 +87,9 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
   static char my_name[MAXNAMLEN];
   fridge_entry_t * pfe = NULL;
   process_status_t status;
-
+  hash_table_t * ht_sock = NULL ;
+  unsigned int passcount = 0 ;
+   
   snprintf(my_name, MAXNAMLEN, "tcp_sock_mgr#fd=%ld", tcp_sock);
   SetNameFunction(my_name);
 
@@ -109,6 +112,18 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
   LogDebug(COMPONENT_DISPATCH,
            "Starting with pthread id #%p",
            (caddr_t) pthread_self());
+
+  /* Init the hash table for TCP DRC associated with this connection */
+  if((ht_sock = HashTable_Init(nfs_param.dupreq_tcp_param.hash_param)) == NULL)
+    {
+      LogCrit(COMPONENT_DUPREQ,
+              "Cannot init the duplicate request hash table for socket %lu", tcp_sock);
+      return NULL;
+    }
+  TCP_DRC_HashTables[tcp_sock] = ht_sock ; 
+
+  /* Init the atomic counter */
+  atomic_counter_init( &TCP_DRC_acount[tcp_sock] ) ;
 
   for(;;)
     {
@@ -138,7 +153,7 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
 
       LogFullDebug(COMPONENT_DISPATCH,
                    "A NFS TCP request from an already connected client");
-      
+
       status = process_rpc_request(Xports[tcp_sock]);
 
       if(status == PROCESS_LOST_CONN)
@@ -148,6 +163,13 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
                   "Freezing thread %p",
                   (caddr_t)pthread_self());
 
+          /* Connection is lost, this means that formerly stored TCP dupreq 
+           * have become meaningless */
+          if( HashTable_Delall(  ht_sock, NULL ) == HASHTABLE_SUCCESS )
+            LogDebug( COMPONENT_DISPATCH, "cleaning TCP dupreq hash table for socket %ld", tcp_sock ) ;
+          else
+            LogMajor( COMPONENT_DISPATCH, "Failure while cleaning RCP dupreq hash table for dead tcp_scok_mgr#fd=%ld", tcp_sock ) ;
+ 
           if( ( pfe = fridgethr_freeze( ) ) == NULL )
             {
 
@@ -163,11 +185,25 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
 
           continue;
         }
+
+      if( passcount++ > DUPREQ_TCP_GC_PERIOD )
+        {
+          //nfs_tcp_dupreq_gc( tcp_sock ) ;
+          passcount = 0 ;
+        }
     }
 
   /* Fridge expiration, the thread and exit */
   LogDebug(COMPONENT_DISPATCH,
            "TCP connection manager has expired in the fridge, stopping");
+           
+  printf( "TCP connection manager has expired in the fridge, stopping\n");
+
+  /* No more tcp dupreq hash table */
+  if( HashTable_Destroy(  ht_sock, NULL ) == HASHTABLE_SUCCESS )
+   LogDebug( COMPONENT_DISPATCH, "Ok cleaning TCP dupreq hash table for socket %ld", tcp_sock ) ;
+  else
+   LogMajor( COMPONENT_DISPATCH, "Failure while cleaning RCP dupreq hash table for dead tcp_scok_mgr#fd=%ld", tcp_sock ) ;
 
 #ifndef _NO_BUDDY_SYSTEM
   /* Free stuff allocated by BuddyMalloc before thread exists */

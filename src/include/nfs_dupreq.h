@@ -78,6 +78,7 @@ typedef struct dupreq_entry__
   sockaddr_t addr;
   int checksum;
   int ipproto ;
+  uint64_t counter ;
 
   pthread_mutex_t dupreq_mutex;
   int processing; /* if currently being processed, this should be = 1 */
@@ -93,10 +94,10 @@ unsigned int get_rpc_xid(struct svc_req *reqp);
 
 int compare_req(hash_buffer_t * buff1, hash_buffer_t * buff2);
 int print_entry_dupreq(LRU_data_t data, char *str);
-int clean_entry_dupreq(LRU_entry_t * pentry, void *addparam);
-int nfs_dupreq_gc_function(LRU_entry_t * pentry, void *addparam);
+int clean_entry_dupreq_udp(LRU_entry_t * pentry, void *addparam);
+int nfs_dupreq_gc_udp_function(LRU_entry_t * pentry, void *addparam);
+int nfs_dupreq_gc_tcp_function(LRU_entry_t * pentry, void *addparam);
 
-nfs_res_t nfs_dupreq_get(long xid, struct svc_req *ptr_req, SVCXPRT *xprt, int *pstatus);
 int nfs_dupreq_delete(long xid, struct svc_req *ptr_req, SVCXPRT *xprt,
                       struct prealloc_pool *dupreq_pool);
 int nfs_dupreq_add_not_finished(long xid,
@@ -110,11 +111,31 @@ int nfs_dupreq_finish(long xid,
 		      SVCXPRT *xprt,
 		      nfs_res_t * p_res_nfs,
 		      LRU_list_t * lru_dupreq);
+nfs_res_t nfs_dupreq_get(long xid, struct svc_req *ptr_req, SVCXPRT *xprt, int *pstatus) ;
+
+int nfs_dupreq_tcp_delete(long xid, struct svc_req *ptr_req, SVCXPRT *xprt,
+                      struct prealloc_pool *dupreq_pool);
+int nfs_dupreq_tcp_add_not_finished(long xid,
+                                struct svc_req *ptr_req,
+                                SVCXPRT *xprt,
+                                struct prealloc_pool *dupreq_pool,
+                                nfs_res_t *res_nfs);
+
+int nfs_dupreq_tcp_finish(long xid,
+                      struct svc_req *ptr_req,
+                      SVCXPRT *xprt,
+                      nfs_res_t * p_res_nfs,
+                      LRU_list_t * lru_dupreq);
+nfs_res_t nfs_dupreq_tcp_get(long xid, struct svc_req *ptr_req, SVCXPRT *xprt, int *pstatus) ;
+
 
 unsigned long dupreq_value_hash_func(hash_parameter_t * p_hparam,
                                      hash_buffer_t * buffclef);
 unsigned long dupreq_rbt_hash_func(hash_parameter_t * p_hparam, hash_buffer_t * buffclef);
+unsigned long dupreq_tcp_rbt_hash_func( hash_parameter_t * p_hparam, hash_buffer_t * buffclef) ;
 void nfs_dupreq_get_stats(hash_stat_t * phstat_udp, hash_stat_t * phstat_tcp ) ;
+void nfs_tcp_dupreq_gc( int fd ) ;
+
 
 
 #define DUPREQ_SUCCESS             0
@@ -123,5 +144,11 @@ void nfs_dupreq_get_stats(hash_stat_t * phstat_udp, hash_stat_t * phstat_tcp ) ;
 #define DUPREQ_NOT_FOUND           2
 #define DUPREQ_BEING_PROCESSED     3
 #define DUPREQ_ALREADY_EXISTS      4
+
+/* Remember this number of TCP dupreq per connection */
+#define DUPREQ_TCP_K_LATEST       128 
+
+ /* How ofthen (number of rpc calls) should TCP DUPREQ be gc-ed ? */
+#define DUPREQ_TCP_GC_PERIOD     5*DUPREQ_TCP_K_LATEST
 
 #endif                          /* _NFS_DUPREQ_H */

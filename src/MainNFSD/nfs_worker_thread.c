@@ -1671,7 +1671,8 @@ int nfs_Init_worker_data(nfs_worker_data_t * pdata)
   return 0;
 }                               /* nfs_Init_worker_data */
 
-void DispatchWorkNFS(request_data_t *pnfsreq, unsigned int worker_index)
+
+static void DispatchWorkNFS_To_Worker(request_data_t *pnfsreq, unsigned int worker_index)
 {
   LRU_entry_t *pentry = NULL;
   LRU_status_t status;
@@ -1712,6 +1713,52 @@ void DispatchWorkNFS(request_data_t *pnfsreq, unsigned int worker_index)
   V(workers_data[worker_index].request_pool_mutex);
   V(workers_data[worker_index].wcb.tcb_mutex);
 }
+
+/* Return 1 if req dispatched to worker, 0 if not (DRC HIT) */
+int DispatchWorkNFS( request_data_t *pnfsreq, unsigned int worker_index)
+{ 
+   nfs_res_t nfs_res ;
+   int status = DUPREQ_NOT_FOUND ;
+   const nfs_function_desc_t * pfuncdesc = NULL ;
+
+   /* IMPORTANT: In this function, I am still in the TCP dispatcher thread */
+     
+   /** @todo : Use a inline function or a macro for this test */   
+   if( pnfsreq->rcontent.nfs.req.rq_xprt->xp_p1 != NULL )
+    {
+       /* TCP management, DRC should be performed by the TCP dispatcher, not the worker */
+
+       nfs_res = nfs_dupreq_get( pnfsreq->rcontent.nfs.msg.rm_xid, 
+                                 &pnfsreq->rcontent.nfs.req, 
+                                 pnfsreq->rcontent.nfs.req.rq_xprt, 
+                                 &status) ;
+
+       if( status == DUPREQ_SUCCESS )
+        {
+           /* Dup Req found in cache */
+           LogDebug( COMPONENT_DISPATCH, "TCP DRC hit for socket %lu", 
+                     pnfsreq->rcontent.nfs.req.rq_xprt->xp_fd ) ;
+           pfuncdesc = nfs_rpc_get_funcdesc(&pnfsreq->rcontent.nfs);
+
+           /* If this part of the code is reached, the TCP dispatcher will answer instead of a worker */
+           if(svc_sendreply( pnfsreq->rcontent.nfs.req.rq_xprt,
+                             pfuncdesc->xdr_encode_func,             
+                             (caddr_t) &nfs_res) == FALSE ) 
+             {
+              LogDebug(COMPONENT_DISPATCH,
+                       "NFS DISPATCHER: FAILURE: Error while calling svc_sendreply");
+              svcerr_systemerr( pnfsreq->rcontent.nfs.req.rq_xprt );
+             }
+
+           return 0; /* not dispatched */
+        }
+       /* else... dispatch to worker using DispatchWorkNFS_To_Worker and proceed normally */
+    }
+
+   DispatchWorkNFS_To_Worker( pnfsreq, worker_index ) ;
+   return 1 ; /* Tell the caller to treat this as a req managed by a worker */
+} /* DispatchWorkNFS */
+
 
 enum auth_stat AuthenticateRequest(nfs_request_data_t *pnfsreq,
                                    bool_t *no_dispatch)
@@ -2075,14 +2122,14 @@ void *worker_thread(void *IndexArg)
 
       if(pmydata->passcounter > nfs_param.worker_param.nb_before_gc)
         {
-          /* Garbage collection on dup req cache */
+          /* Garbage collection on dup req cache for udp */
           LogFullDebug(COMPONENT_DISPATCH,
                        "before dupreq invalidation nb_entry=%d nb_invalid=%d",
                        pmydata->duplicate_request->nb_entry,
                        pmydata->duplicate_request->nb_invalid);
           if((rc =
               LRU_invalidate_by_function(pmydata->duplicate_request,
-                                         nfs_dupreq_gc_function,
+                                         nfs_dupreq_gc_udp_function,
                                          NULL)) != LRU_LIST_SUCCESS)
             {
               LogCrit(COMPONENT_DISPATCH,

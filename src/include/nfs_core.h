@@ -88,6 +88,9 @@
 #define NB_MAX_WORKER_THREAD 4096
 #define NB_MAX_FLUSHER_THREAD 100
 
+/* Maximum stacksize for a TCP connection manager */
+#define THREAD_TCP_STACK_SIZE 1048576
+
 /* NFS daemon behavior default values */
 #define NB_WORKER_THREAD_DEFAULT  16
 #define NB_FLUSHER_THREAD_DEFAULT 16
@@ -100,6 +103,7 @@
 #define PRIME_ID_MAPPER 17      /* has to be a prime number */
 #define DUPREQ_EXPIRATION 180
 #define NB_PREALLOC_HASH_DUPREQ 100
+#define NB_PREALLOC_HASH_DUPREQ_TCP 10
 #define NB_PREALLOC_LRU_DUPREQ 100
 #define NB_PREALLOC_GC_DUPREQ 100
 #define NB_PREALLOC_ID_MAPPER 200
@@ -345,6 +349,7 @@ typedef struct nfs_param__
   nfs_core_parameter_t core_param;
   nfs_worker_parameter_t worker_param;
   nfs_rpc_dupreq_parameter_t dupreq_param;
+  nfs_rpc_dupreq_parameter_t dupreq_tcp_param;
   nfs_ip_name_parameter_t ip_name_param;
   nfs_idmap_cache_parameter_t uidmap_cache_param;
   nfs_idmap_cache_parameter_t gidmap_cache_param;
@@ -608,7 +613,7 @@ worker_available_rc worker_available(unsigned long index, unsigned int avg_numbe
 pause_rc pause_workers(pause_reason_t reason);
 pause_rc wake_workers(awaken_reason_t reason);
 pause_rc wait_for_workers_to_awaken();
-void DispatchWorkNFS(request_data_t *pnfsreq, unsigned int worker_index);
+int DispatchWorkNFS(request_data_t *pnfsreq, unsigned int worker_index);
 void *worker_thread(void *IndexArg);
 process_status_t process_rpc_request(SVCXPRT *xprt);
 void *rpc_dispatcher_thread(void *arg);
