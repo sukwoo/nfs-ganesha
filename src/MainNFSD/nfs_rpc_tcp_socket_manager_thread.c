@@ -163,6 +163,13 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
                   "Freezing thread %p",
                   (caddr_t)pthread_self());
 
+          /* Connection is lost, this means that formerly stored TCP dupreq 
+           * have become meaningless */
+          if( HashTable_Delall(  ht_sock, NULL ) == HASHTABLE_SUCCESS )
+            LogDebug( COMPONENT_DISPATCH, "cleaning TCP dupreq hash table for socket %ld", tcp_sock ) ;
+          else
+            LogMajor( COMPONENT_DISPATCH, "Failure while cleaning RCP dupreq hash table for dead tcp_scok_mgr#fd=%ld", tcp_sock ) ;
+ 
           if( ( pfe = fridgethr_freeze( ) ) == NULL )
             {
 
@@ -181,7 +188,7 @@ void *rpc_tcp_socket_manager_thread(void *Arg)
 
       if( passcount++ > DUPREQ_TCP_GC_PERIOD )
         {
-          nfs_tcp_dupreq_gc( tcp_sock ) ;
+          //nfs_tcp_dupreq_gc( tcp_sock ) ;
           passcount = 0 ;
         }
     }

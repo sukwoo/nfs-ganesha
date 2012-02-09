@@ -1736,7 +1736,8 @@ int DispatchWorkNFS( request_data_t *pnfsreq, unsigned int worker_index)
        if( status == DUPREQ_SUCCESS )
         {
            /* Dup Req found in cache */
-           printf( "======------------------------=====> TCP DRC : hit found !!\n" ) ;
+           LogDebug( COMPONENT_DISPATCH, "TCP DRC hit for socket %lu", 
+                     pnfsreq->rcontent.nfs.req.rq_xprt->xp_fd ) ;
            pfuncdesc = nfs_rpc_get_funcdesc(&pnfsreq->rcontent.nfs);
 
            /* If this part of the code is reached, the TCP dispatcher will answer instead of a worker */
