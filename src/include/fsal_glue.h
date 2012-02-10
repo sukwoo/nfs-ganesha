@@ -37,8 +37,7 @@
 #include "fsal_glue_const.h"
 
 /* In the "static" case, original types are used, this is safer */
-#if defined(_USE_SHARED_FSAL) || \
-    defined(_USE_POSIX)        || \
+#if defined(_USE_POSIX)        || \
     defined(_USE_VFS)          || \
     defined(_USE_XFS)          || \
     defined(_USE_GPFS)         || \
@@ -110,6 +109,6 @@ typedef struct
   char data[FSAL_FS_SPECIFIC_INITINFO_T];
 } fs_specific_initinfo_t;
 
-#endif                          /* USE_SHARED_FSAL */
+#endif
 
 #endif                          /* _FSAL_GLUE_H */

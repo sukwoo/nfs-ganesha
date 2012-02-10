@@ -66,7 +66,6 @@
  * @param pattr [OUT] pointer to the attributes for the result. 
  * @param ht [IN] hash table used for the cache, unused in this call.
  * @param pclient [INOUT] ressource allocated by the client for the nfs management.
- * @param pcontext [IN] FSAL credentials 
  * @param pstatus [OUT] returned status.
  * 
  * @return the pointer to the entry is successfull, NULL otherwise.
@@ -77,10 +76,9 @@ cache_entry_t *cache_inode_get( cache_inode_fsal_data_t * pfsdata,
                                 fsal_attrib_list_t * pattr,
                                 hash_table_t * ht,
                                 cache_inode_client_t * pclient,
-                                fsal_op_context_t * pcontext,
                                 cache_inode_status_t * pstatus )
 {
-  return cache_inode_get_located( pfsdata, NULL, policy, pattr, ht, pclient, pcontext, pstatus ) ;
+  return cache_inode_get_located( pfsdata, NULL, policy, pattr, ht, pclient, pstatus ) ;
 } /* cache_inode_get */
 
 /**
@@ -97,7 +95,6 @@ cache_entry_t *cache_inode_get( cache_inode_fsal_data_t * pfsdata,
  * @param pattr [OUT] pointer to the attributes for the result. 
  * @param ht [IN] hash table used for the cache, unused in this call.
  * @param pclient [INOUT] ressource allocated by the client for the nfs management.
- * @param pcontext [IN] FSAL credentials 
  * @param pstatus [OUT] returned status.
  * 
  * @return the pointer to the entry is successfull, NULL otherwise.
@@ -110,7 +107,6 @@ cache_entry_t *cache_inode_get_located(cache_inode_fsal_data_t * pfsdata,
                                        fsal_attrib_list_t * pattr,
                                        hash_table_t * ht,
                                        cache_inode_client_t * pclient,
-                                       fsal_op_context_t * pcontext,
                                        cache_inode_status_t * pstatus)
 {
   hash_buffer_t key, value;
@@ -185,12 +181,12 @@ cache_entry_t *cache_inode_get_located(cache_inode_fsal_data_t * pfsdata,
           cache_inode_release_fsaldata_key(&key, pclient);
 
           /* redo the call */
-          return cache_inode_get(pfsdata, policy, pattr, ht, pclient, pcontext, pstatus);
+          return cache_inode_get(pfsdata, policy, pattr, ht, pclient, pstatus);
         }
 
       /* First, call FSAL to know what the object is */
       fsal_attributes.asked_attributes = pclient->attrmask;
-      fsal_status = FSAL_getattrs(&pfsdata->handle, pcontext, &fsal_attributes);
+      fsal_status = pfsdata->handle->ops->getattrs(pfsdata->handle,&fsal_attributes);
       if(FSAL_IS_ERROR(fsal_status))
         {
           *pstatus = cache_inode_error_convert(fsal_status);
@@ -243,9 +239,9 @@ cache_entry_t *cache_inode_get_located(cache_inode_fsal_data_t * pfsdata,
            {
              FSAL_CLEAR_MASK(fsal_attributes.asked_attributes);
              FSAL_SET_MASK(fsal_attributes.asked_attributes, pclient->attrmask);
-             fsal_status =
-                FSAL_readlink(&pfsdata->handle, pcontext, &create_arg.link_content,
-                              &fsal_attributes);
+             fsal_status = pfsdata->handle->ops->readlink(pfsdata->handle,
+							  create_arg.link_content.path,
+							  FSAL_MAX_PATH_LEN);
             }
           else
             { 
@@ -297,7 +293,6 @@ cache_entry_t *cache_inode_get_located(cache_inode_fsal_data_t * pfsdata,
                                           NULL,    /* never used to add a new DIR_CONTINUE within this function */
                                           ht, 
                                           pclient, 
-                                          pcontext, 
                                           FALSE,  /* This is a population, not a creation */
                                           pstatus ) ) == NULL )
         {

@@ -126,11 +126,21 @@
  * @return 1 if successful, 0 otherwise
  *
  */
-int nfs4_FhandleToFSAL(nfs_fh4 * pfh4, fsal_handle_t * pfsalhandle,
+
+/* FIXEME: these functions hardwire access to nfs_param for the exportid
+ * lookup.  Not good but minimal change for now. see note in nfs_export_list.c.
+ * at some point we will no longer need the pcontext arg either.
+ */
+
+int nfs4_FhandleToFSAL(nfs_fh4 * pfh4,
+		       struct fsal_obj_handle **pfsalhandle,
                        fsal_op_context_t * pcontext)
 {
   fsal_status_t fsal_status;
   file_handle_v4_t *pfile_handle;
+  unsigned short exportid;
+  struct fsal_export *exp_hdl;
+  exportlist_t *pexport;
 
   print_fhandle4(COMPONENT_FILEHANDLE, pfh4);
 
@@ -145,10 +155,14 @@ int nfs4_FhandleToFSAL(nfs_fh4 * pfh4, fsal_handle_t * pfsalhandle,
   if(pfile_handle->pseudofs_id != 0 || pfile_handle->pseudofs_flag != FALSE)
     return 0;                   /* Bad FH */
 
-  /* Fill in the fs opaque part */
-  fsal_status =
-      FSAL_ExpandHandle(FSAL_GET_EXP_CTX(pcontext), FSAL_DIGEST_NFSV4,
-                        (caddr_t) & (pfile_handle->fsopaque), pfsalhandle);
+  exportid = nfs4_FhandleToExportId(pfh4);
+  pexport = nfs_Get_export_by_id(nfs_param.pexportlist, exportid);
+  exp_hdl = pexport->export_hdl;
+
+  fsal_status = exp_hdl->ops->create_handle(exp_hdl,
+					    FSAL_DIGEST_NFSV4,
+					    (caddr_t) &(pfile_handle->fsopaque),
+					    pfsalhandle);
   if(FSAL_IS_ERROR(fsal_status))
     return 0;                   /* Corrupted (or stale) FH */
 
@@ -169,11 +183,15 @@ int nfs4_FhandleToFSAL(nfs_fh4 * pfh4, fsal_handle_t * pfsalhandle,
  * @return 1 if successful, 0 otherwise
  *
  */
-int nfs3_FhandleToFSAL(nfs_fh3 * pfh3, fsal_handle_t * pfsalhandle,
+int nfs3_FhandleToFSAL(nfs_fh3 * pfh3,
+		       struct fsal_obj_handle **pfsalhandle,
                        fsal_op_context_t * pcontext)
 {
   fsal_status_t fsal_status;
   file_handle_v3_t *pfile_handle;
+  unsigned short exportid;
+  struct fsal_export *exp_hdl;
+  exportlist_t *pexport;
 
   print_fhandle3(COMPONENT_FILEHANDLE, pfh3);
 
@@ -184,10 +202,14 @@ int nfs3_FhandleToFSAL(nfs_fh3 * pfh3, fsal_handle_t * pfsalhandle,
   /* Cast the fh as a non opaque structure */
   pfile_handle = (file_handle_v3_t *) (pfh3->data.data_val);
 
-  /* Fill in the fs opaque part */
-  fsal_status =
-      FSAL_ExpandHandle(FSAL_GET_EXP_CTX(pcontext), FSAL_DIGEST_NFSV3,
-                        (caddr_t) & (pfile_handle->fsopaque), pfsalhandle);
+  exportid = nfs3_FhandleToExportId(pfh3);
+  pexport = nfs_Get_export_by_id(nfs_param.pexportlist, exportid);
+  exp_hdl = pexport->export_hdl;
+
+  fsal_status = exp_hdl->ops->create_handle(exp_hdl,
+					    FSAL_DIGEST_NFSV3,
+					    (caddr_t) &(pfile_handle->fsopaque),
+					    pfsalhandle);
   if(FSAL_IS_ERROR(fsal_status))
     return 0;                   /* Corrupted FH */
 
@@ -208,20 +230,28 @@ int nfs3_FhandleToFSAL(nfs_fh3 * pfh3, fsal_handle_t * pfsalhandle,
  * @return 1 if successful, 0 otherwise
  *
  */
-int nfs2_FhandleToFSAL(fhandle2 * pfh2, fsal_handle_t * pfsalhandle,
+int nfs2_FhandleToFSAL(fhandle2 * pfh2,
+		       struct fsal_obj_handle **pfsalhandle,
                        fsal_op_context_t * pcontext)
 {
   fsal_status_t fsal_status;
   file_handle_v2_t *pfile_handle;
+  unsigned short exportid;
+  struct fsal_export *exp_hdl;
+  exportlist_t *pexport;
 
   /* Cast the fh as a non opaque structure */
   pfile_handle = (file_handle_v2_t *) pfh2;
   print_fhandle2(COMPONENT_FILEHANDLE, pfh2);
 
-  /* Fill in the fs opaque part */
-  fsal_status =
-      FSAL_ExpandHandle(FSAL_GET_EXP_CTX(pcontext), FSAL_DIGEST_NFSV2,
-                        (caddr_t) & (pfile_handle->fsopaque), pfsalhandle);
+  exportid = nfs2_FhandleToExportId(pfh2);
+  pexport = nfs_Get_export_by_id(nfs_param.pexportlist, exportid);
+  exp_hdl = pexport->export_hdl;
+
+  fsal_status = exp_hdl->ops->create_handle(exp_hdl,
+					    FSAL_DIGEST_NFSV2,
+					    (caddr_t) &(pfile_handle->fsopaque),
+					    pfsalhandle);
   if(FSAL_IS_ERROR(fsal_status))
     return 0;                   /* Corrupted FH */
 
@@ -243,7 +273,8 @@ int nfs2_FhandleToFSAL(fhandle2 * pfh2, fsal_handle_t * pfsalhandle,
  * @return 1 if successful, 0 otherwise
  *
  */
-int nfs4_FSALToFhandle(nfs_fh4 * pfh4, fsal_handle_t * pfsalhandle,
+int nfs4_FSALToFhandle(nfs_fh4 * pfh4,
+		       struct fsal_obj_handle *pfsalhandle,
                        compound_data_t * data)
 {
   fsal_status_t fsal_status;
@@ -254,9 +285,9 @@ int nfs4_FSALToFhandle(nfs_fh4 * pfh4, fsal_handle_t * pfsalhandle,
   memset((caddr_t) &file_handle, 0, sizeof(file_handle_v4_t));
 
   /* Fill in the fs opaque part */
-  fsal_status =
-      FSAL_DigestHandle(&data->pexport->FS_export_context, FSAL_DIGEST_NFSV4, pfsalhandle,
-                        (caddr_t) & file_handle.fsopaque);
+  fsal_status = pfsalhandle->ops->handle_digest(pfsalhandle,
+						FSAL_DIGEST_NFSV4,
+						(caddr_t) &file_handle.fsopaque);
   if(FSAL_IS_ERROR(fsal_status))
     return 0;
 
@@ -306,7 +337,8 @@ int nfs4_FSALToFhandle(nfs_fh4 * pfh4, fsal_handle_t * pfsalhandle,
  * @return 1 if successful, 0 otherwise
  *
  */
-int nfs3_FSALToFhandle(nfs_fh3 * pfh3, fsal_handle_t * pfsalhandle,
+int nfs3_FSALToFhandle(nfs_fh3 * pfh3,
+		       struct fsal_obj_handle *pfsalhandle,
                        exportlist_t * pexport)
 {
   fsal_status_t fsal_status;
@@ -319,9 +351,9 @@ int nfs3_FSALToFhandle(nfs_fh3 * pfh3, fsal_handle_t * pfsalhandle,
   memset((caddr_t) &file_handle, 0, sizeof(file_handle_v3_t));
 
   /* Fill in the fs opaque part */
-  fsal_status =
-      FSAL_DigestHandle(&pexport->FS_export_context, FSAL_DIGEST_NFSV3, pfsalhandle,
-                        (caddr_t) & file_handle.fsopaque);
+  fsal_status = pfsalhandle->ops->handle_digest(pfsalhandle,
+						FSAL_DIGEST_NFSV3,
+						(caddr_t) &file_handle.fsopaque);
   if(FSAL_IS_ERROR(fsal_status))
     return 0;
 
@@ -355,7 +387,8 @@ int nfs3_FSALToFhandle(nfs_fh3 * pfh3, fsal_handle_t * pfsalhandle,
  * @return 1 if successful, 0 otherwise
  *
  */
-int nfs2_FSALToFhandle(fhandle2 * pfh2, fsal_handle_t * pfsalhandle,
+int nfs2_FSALToFhandle(fhandle2 * pfh2,
+		       struct fsal_obj_handle *pfsalhandle,
                        exportlist_t * pexport)
 {
   fsal_status_t fsal_status;
@@ -368,9 +401,9 @@ int nfs2_FSALToFhandle(fhandle2 * pfh2, fsal_handle_t * pfsalhandle,
   memset((caddr_t) &file_handle, 0, sizeof(file_handle_v2_t));
 
   /* Fill in the fs opaque part */
-  fsal_status =
-      FSAL_DigestHandle(&pexport->FS_export_context, FSAL_DIGEST_NFSV2, pfsalhandle,
-                        (caddr_t) & file_handle.fsopaque);
+  fsal_status = pfsalhandle->ops->handle_digest(pfsalhandle,
+						FSAL_DIGEST_NFSV2,
+						(caddr_t) &file_handle.fsopaque);
   if(FSAL_IS_ERROR(fsal_status))
     return 0;
 

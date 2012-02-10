@@ -156,7 +156,6 @@ bool_t lock_owner_is_nlm(state_lock_entry_t * lock_entry)
 }
 
 state_status_t do_lock_op(cache_entry_t        * pentry,
-                          fsal_op_context_t    * pcontext,
                           fsal_lock_op_t         lock_op,
                           state_owner_t        * powner,
                           fsal_lock_param_t    * plock,
@@ -349,7 +348,6 @@ void LogLock(log_components_t     component,
              log_levels_t         debug,
              const char         * reason,
              cache_entry_t      * pentry,
-             fsal_op_context_t  * pcontext,
              state_owner_t      * powner,
              fsal_lock_param_t  * plock)
 {
@@ -363,10 +361,9 @@ void LogLock(log_components_t     component,
       else
         sprintf(owner, "NONE");
 
-      FSAL_DigestHandle(FSAL_GET_EXP_CTX(pcontext),
-                        FSAL_DIGEST_FILEID3,
-                        &(pentry->handle),
-                        (caddr_t) &fileid_digest);
+      (void) pentry->handle->ops->handle_digest(pentry->handle,
+						FSAL_DIGEST_FILEID3,
+						(caddr_t) &fileid_digest);
 
       LogAtLevel(component, debug,
                  "%s Lock: fileid=%llu, type=%s, start=0x%llx, end=0x%llx, owner={%s}",
@@ -423,7 +420,6 @@ void dump_all_locks(void)
  *
  ******************************************************************************/
 static state_lock_entry_t *create_state_lock_entry(cache_entry_t      * pentry,
-                                                   fsal_op_context_t  * pcontext,
                                                    state_blocking_t     blocked,
                                                    state_owner_t      * powner,
                                                    state_t            * pstate,
@@ -456,10 +452,9 @@ static state_lock_entry_t *create_state_lock_entry(cache_entry_t      * pentry,
   new_entry->sle_block_data = NULL;   /* will be filled in later if necessary */
   new_entry->sle_lock       = *plock;
 
-  FSAL_DigestHandle(FSAL_GET_EXP_CTX(pcontext),
-                    FSAL_DIGEST_FILEID3,
-                    &(pentry->handle),
-                    (caddr_t) &fileid);
+  (void) pentry->handle->ops->handle_digest(pentry->handle,
+					    FSAL_DIGEST_FILEID3,
+					    (caddr_t) &fileid);
 
   new_entry->sle_fileid = (unsigned long long) fileid;
 
@@ -499,11 +494,9 @@ static state_lock_entry_t *create_state_lock_entry(cache_entry_t      * pentry,
   return new_entry;
 }
 
-inline state_lock_entry_t *state_lock_entry_t_dup(fsal_op_context_t  * pcontext,
-                                                  state_lock_entry_t * orig_entry)
+inline state_lock_entry_t *state_lock_entry_t_dup(state_lock_entry_t * orig_entry)
 {
   return create_state_lock_entry(orig_entry->sle_pentry,
-                                 pcontext,
                                  orig_entry->sle_blocked,
                                  orig_entry->sle_owner,
                                  orig_entry->sle_state,
@@ -607,7 +600,6 @@ static void remove_from_locklist(state_lock_entry_t   * lock_entry,
 }
 
 static state_lock_entry_t *get_overlapping_entry(cache_entry_t     * pentry,
-                                                 fsal_op_context_t * pcontext,
                                                  state_owner_t     * powner,
                                                  fsal_lock_param_t * plock)
 {
@@ -654,7 +646,6 @@ static state_lock_entry_t *get_overlapping_entry(cache_entry_t     * pentry,
  * implies remove all entries
  */
 static void merge_lock_entry(cache_entry_t        * pentry,
-                             fsal_op_context_t    * pcontext,
                              state_lock_entry_t   * lock_entry,
                              cache_inode_client_t * pclient)
 {
@@ -729,7 +720,6 @@ static void free_list(struct glist_head    * list,
 
 /* Subtract a lock from a lock entry, placing any remaining bits into the split list. */
 static bool_t subtract_lock_from_entry(cache_entry_t        * pentry,
-                                       fsal_op_context_t    * pcontext,
                                        state_lock_entry_t   * found_entry,
                                        fsal_lock_param_t    * plock,
                                        struct glist_head    * split_list,
@@ -765,7 +755,7 @@ static bool_t subtract_lock_from_entry(cache_entry_t        * pentry,
   /* Delete the old entry and add one or two new entries */
   if(plock->lock_start > found_entry->sle_lock.lock_start)
     {
-      found_entry_left = state_lock_entry_t_dup(pcontext, found_entry);
+      found_entry_left = state_lock_entry_t_dup(found_entry);
       if(found_entry_left == NULL)
         {
           free_list(split_list, pclient);
@@ -780,7 +770,7 @@ static bool_t subtract_lock_from_entry(cache_entry_t        * pentry,
 
   if(plock_end < found_entry_end)
     {
-      found_entry_right = state_lock_entry_t_dup(pcontext, found_entry);
+      found_entry_right = state_lock_entry_t_dup(found_entry);
       if(found_entry_right == NULL)
         {
           free_list(split_list, pclient);
@@ -805,7 +795,6 @@ complete_remove:
 
 /* Subtract a lock from a list of locks, possibly splitting entries in the list. */
 static bool_t subtract_lock_from_list(cache_entry_t        * pentry,
-                                      fsal_op_context_t    * pcontext,
                                       state_owner_t        * powner,
                                       state_t              * pstate,
                                       fsal_lock_param_t    * plock,
@@ -850,7 +839,6 @@ static bool_t subtract_lock_from_list(cache_entry_t        * pentry,
        * don't inc the ref count because we want to drop the lock entry.
        */
       rc |= subtract_lock_from_entry(pentry,
-                                     pcontext,
                                      found_entry,
                                      plock,
                                      &split_lock_list,
@@ -896,7 +884,6 @@ static bool_t subtract_lock_from_list(cache_entry_t        * pentry,
 }
 
 static state_status_t subtract_list_from_list(cache_entry_t        * pentry,
-                                              fsal_op_context_t    * pcontext,
                                               struct glist_head    * target,
                                               struct glist_head    * source,
                                               state_status_t       * pstatus,
@@ -912,7 +899,6 @@ static state_status_t subtract_list_from_list(cache_entry_t        * pentry,
       found_entry = glist_entry(glist, state_lock_entry_t, sle_list);
 
       subtract_lock_from_list(pentry,
-                              pcontext,
                               NULL,
                               NULL,
                               &found_entry->sle_lock,
@@ -1164,7 +1150,6 @@ state_status_t state_add_grant_cookie(cache_entry_t         * pentry,
         /* Now that we are sure we can continue, try to acquire the FSAL lock */
         /* If we get STATE_LOCK_BLOCKED we need to return... */
         *pstatus = do_lock_op(pentry,
-                              pcontext,
                               FSAL_OP_LOCKB,
                               lock_entry->sle_owner,
                               &lock_entry->sle_lock,
@@ -1178,7 +1163,6 @@ state_status_t state_add_grant_cookie(cache_entry_t         * pentry,
         /* Now that we are sure we can continue, acquire the FSAL lock */
         /* If we get STATE_LOCK_BLOCKED we need to return... */
         *pstatus = do_lock_op(pentry,
-                              pcontext,
                               FSAL_OP_LOCK,
                               lock_entry->sle_owner,
                               &lock_entry->sle_lock,
@@ -1231,7 +1215,6 @@ state_status_t state_cancel_grant(fsal_op_context_t    * pcontext,
 {
   /* We had acquired an FSAL lock, need to release it. */
   *pstatus = do_lock_op(cookie_entry->sce_pentry,
-                        pcontext,
                         FSAL_OP_UNLOCK,
                         cookie_entry->sce_lock_entry->sle_owner,
                         &cookie_entry->sce_lock_entry->sle_lock,
@@ -1296,7 +1279,6 @@ state_status_t state_find_grant(void                  * pcookie,
 }
 
 void grant_blocked_lock_immediate(cache_entry_t         * pentry,
-                                  fsal_op_context_t     * pcontext,
                                   state_lock_entry_t    * lock_entry,
                                   cache_inode_client_t  * pclient)
 {
@@ -1339,12 +1321,11 @@ void grant_blocked_lock_immediate(cache_entry_t         * pentry,
   lock_entry->sle_blocked = STATE_NON_BLOCKING;
 
   /* Merge any touching or overlapping locks into this one. */
-  merge_lock_entry(pentry, pcontext, lock_entry, pclient);
+  merge_lock_entry(pentry, lock_entry, pclient);
   LogEntry("Immediate Granted entry", lock_entry);
 }
 
-void state_complete_grant(fsal_op_context_t     * pcontext,
-                          state_cookie_entry_t  * cookie_entry,
+void state_complete_grant(state_cookie_entry_t  * cookie_entry,
                           cache_inode_client_t  * pclient)
 {
   state_lock_entry_t   * lock_entry;
@@ -1362,7 +1343,7 @@ void state_complete_grant(fsal_op_context_t     * pcontext,
       lock_entry->sle_blocked = STATE_NON_BLOCKING;
 
       /* Merge any touching or overlapping locks into this one. */
-      merge_lock_entry(pentry, pcontext, lock_entry, pclient);
+      merge_lock_entry(pentry, lock_entry, pclient);
 
       LogEntry("Granted entry", lock_entry);
     }
@@ -1433,15 +1414,14 @@ void process_blocked_lock_upcall(state_block_data_t   * block_data,
 }
 
 static void grant_blocked_locks(cache_entry_t        * pentry,
-                                fsal_op_context_t    * pcontext,
                                 cache_inode_client_t * pclient)
 {
   state_lock_entry_t   * found_entry;
   struct glist_head    * glist, * glistn;
-  fsal_staticfsinfo_t  * pstatic = pcontext->export_context->fe_static_fs_info;
+  struct fsal_export *export = pentry->handle->export;
 
   /* If FSAL supports async blocking locks, allow it to grant blocked locks. */
-  if(pstatic->lock_support_async_block)
+  if(export->ops->fs_supports(export, lock_support_async_block))
     return;
 
   glist_for_each_safe(glist, glistn, &pentry->object.file.lock_list)
@@ -1454,7 +1434,6 @@ static void grant_blocked_locks(cache_entry_t        * pentry,
 
       /* Found a blocked entry for this file, see if we can place the lock. */
       if(get_overlapping_entry(pentry,
-                               pcontext,
                                found_entry->sle_owner,
                                &found_entry->sle_lock) != NULL)
         continue;
@@ -1465,7 +1444,6 @@ static void grant_blocked_locks(cache_entry_t        * pentry,
 }
 
 state_status_t cancel_blocked_lock(cache_entry_t        * pentry,
-                                   fsal_op_context_t    * pcontext,
                                    state_lock_entry_t   * lock_entry,
                                    cache_inode_client_t * pclient)
 {
@@ -1513,7 +1491,6 @@ state_status_t cancel_blocked_lock(cache_entry_t        * pentry,
        * of needing cancelling.
        */
       state_status = do_lock_op(pentry,
-                                pcontext,
                                 FSAL_OP_CANCEL,
                                 lock_entry->sle_owner,
                                 &lock_entry->sle_lock,
@@ -1558,7 +1535,6 @@ state_status_t cancel_blocked_lock(cache_entry_t        * pentry,
  * retry the remainder lock that should have still been blocking.
  */
 void cancel_blocked_locks_range(cache_entry_t        * pentry,
-                                fsal_op_context_t    * pcontext,
                                 state_owner_t        * powner,
                                 state_t              * pstate,
                                 fsal_lock_param_t    * plock,
@@ -1597,7 +1573,7 @@ void cancel_blocked_locks_range(cache_entry_t        * pentry,
          (found_entry->sle_lock.lock_start <= plock_end))
         {
           /* lock overlaps, cancel it. */
-          (void) cancel_blocked_lock(pentry, pcontext, found_entry, pclient);
+          (void) cancel_blocked_lock(pentry, found_entry, pclient);
         }
     }
 }
@@ -1634,7 +1610,6 @@ state_status_t state_release_grant(fsal_op_context_t     * pcontext,
 
       /* We had acquired an FSAL lock, need to release it. */
       *pstatus = do_lock_op(pentry,
-                            pcontext,
                             FSAL_OP_UNLOCK,
                             lock_entry->sle_owner,
                             &lock_entry->sle_lock,
@@ -1656,7 +1631,7 @@ state_status_t state_release_grant(fsal_op_context_t     * pcontext,
   free_cookie(cookie_entry, TRUE);
 
   /* Check to see if we can grant any blocked locks. */
-  grant_blocked_locks(pentry, pcontext, pclient);
+  grant_blocked_locks(pentry, pclient);
 
   V(pentry->object.file.lock_list_mutex);
 
@@ -1702,7 +1677,6 @@ inline const char *fsal_lock_op_str(fsal_lock_op_t op)
  * for some callers of FSAL_OP_UNLOCK.
  */
 state_status_t do_unlock_no_owner(cache_entry_t        * pentry,
-                                  fsal_op_context_t    * pcontext,
                                   fsal_lock_param_t    * plock,
                                   cache_inode_client_t * pclient)
 {
@@ -1715,7 +1689,6 @@ state_status_t do_unlock_no_owner(cache_entry_t        * pentry,
   fsal_lock_param_t  * punlock;
 
   unlock_entry = create_state_lock_entry(pentry,
-                                         pcontext,
                                          STATE_NON_BLOCKING,
                                          &unknown_owner, /* no real owner */
                                          NULL, /* no real state */
@@ -1731,7 +1704,6 @@ state_status_t do_unlock_no_owner(cache_entry_t        * pentry,
   LogEntry("Generating FSAL Unlock List", unlock_entry);
 
   if(subtract_list_from_list(pentry,
-                             pcontext,
                              &fsal_unlock_list,
                              &pentry->object.file.lock_list,
                              &status,
@@ -1753,13 +1725,11 @@ state_status_t do_unlock_no_owner(cache_entry_t        * pentry,
 
       LogEntry("FSAL Unlock", found_entry);
 
-      fsal_status = FSAL_lock_op(cache_inode_fd(pentry),
-                                 &pentry->handle,
-                                 pcontext,
-                                 NULL,
-                                 FSAL_OP_UNLOCK,
-                                 *punlock,
-                                 NULL);
+      fsal_status = pentry->handle->ops->lock_op(pentry->handle,
+						 NULL,
+						 FSAL_OP_UNLOCK,
+						 *punlock,
+						 NULL);
 
       t_status = state_error_convert(fsal_status);
 
@@ -1783,7 +1753,6 @@ state_status_t do_unlock_no_owner(cache_entry_t        * pentry,
 }
 
 state_status_t do_lock_op(cache_entry_t        * pentry,
-                          fsal_op_context_t    * pcontext,
                           fsal_lock_op_t         lock_op,
                           state_owner_t        * powner,
                           fsal_lock_param_t    * plock,
@@ -1795,7 +1764,7 @@ state_status_t do_lock_op(cache_entry_t        * pentry,
   fsal_status_t         fsal_status;
   state_status_t        status = STATE_SUCCESS;
   fsal_lock_param_t     conflicting_lock;
-  fsal_staticfsinfo_t * pstatic = pcontext->export_context->fe_static_fs_info;
+  struct fsal_export *export = pentry->handle->export;
 
   /* Quick exit if:
    * Locks are not supported by FSAL
@@ -1804,29 +1773,34 @@ state_status_t do_lock_op(cache_entry_t        * pentry,
    * Lock owners are not supported and hint tells us that lock fully overlaps a
    *   lock we already have (no need to make another FSAL call in that case)
    */
-  if(!pstatic->lock_support ||
-     (!pstatic->lock_support_async_block && lock_op == FSAL_OP_CANCEL) ||
-     (!pstatic->lock_support_async_block && overlap) ||
-     (!pstatic->lock_support_owner && overlap))
+  if( !export->ops->fs_supports(export, lock_support) ||
+     ( !export->ops->fs_supports(export, lock_support_async_block) &&
+       lock_op == FSAL_OP_CANCEL) ||
+     ( !export->ops->fs_supports(export, lock_support_async_block) &&
+       overlap) ||
+     ( !export->ops->fs_supports(export, lock_support_owner) &&
+       overlap))
     return STATE_SUCCESS;
 
   LogLock(COMPONENT_STATE, NIV_FULL_DEBUG,
-          fsal_lock_op_str(lock_op), pentry, pcontext, powner, plock);
+          fsal_lock_op_str(lock_op), pentry, powner, plock);
 
   memset(&conflicting_lock, 0, sizeof(conflicting_lock));
 
-  if(pstatic->lock_support_owner || lock_op != FSAL_OP_UNLOCK)
+  if(export->ops->fs_supports(export, lock_support_owner) ||
+     lock_op != FSAL_OP_UNLOCK)
     {
-      if(lock_op == FSAL_OP_LOCKB && !pstatic->lock_support_async_block)
+      if(lock_op == FSAL_OP_LOCKB &&
+	 !export->ops->fs_supports(export, lock_support_async_block))
         lock_op = FSAL_OP_LOCK;
 
-      fsal_status = FSAL_lock_op(cache_inode_fd(pentry),
-                                 &pentry->handle,
-                                 pcontext,
-                                 pstatic->lock_support_owner ? powner : NULL,
-                                 lock_op,
-                                 *plock,
-                                 &conflicting_lock);
+      fsal_status = pentry->handle->ops->lock_op(pentry->handle,
+						 export->ops->fs_supports(export,
+									  lock_support_owner) ?
+						 powner : NULL,
+						 lock_op,
+						 *plock,
+						 &conflicting_lock);
 
       status = state_error_convert(fsal_status);
 
@@ -1844,7 +1818,7 @@ state_status_t do_lock_op(cache_entry_t        * pentry,
     }
   else
     {
-      status = do_unlock_no_owner(pentry, pcontext, plock, pclient);
+      status = do_unlock_no_owner(pentry, plock, pclient);
     }
 
   if(status == STATE_LOCK_CONFLICT)
@@ -1891,7 +1865,7 @@ void copy_conflict(state_lock_entry_t  * found_entry,
  *
  */
 state_status_t state_test(cache_entry_t        * pentry,
-                          fsal_op_context_t    * pcontext,
+                          struct user_cred     * creds,
                           state_owner_t        * powner,
                           fsal_lock_param_t    * plock,
                           state_owner_t       ** holder,   /* owner that holds conflicting lock */
@@ -1904,9 +1878,9 @@ state_status_t state_test(cache_entry_t        * pentry,
 
   LogLock(COMPONENT_STATE, NIV_FULL_DEBUG,
           "TEST",
-          pentry, pcontext, powner, plock);
+          pentry, powner, plock);
 
-  if(cache_inode_open(pentry, pclient, FSAL_O_RDWR, pcontext, &cache_status) != CACHE_INODE_SUCCESS)
+  if(cache_inode_open(pentry, pclient, FSAL_O_RDWR, creds, &cache_status) != CACHE_INODE_SUCCESS)
     {
       *pstatus = cache_inode_status_to_state_status(cache_status);
       LogFullDebug(COMPONENT_STATE,
@@ -1916,7 +1890,7 @@ state_status_t state_test(cache_entry_t        * pentry,
 
   P(pentry->object.file.lock_list_mutex);
 
-  found_entry = get_overlapping_entry(pentry, pcontext, powner, plock);
+  found_entry = get_overlapping_entry(pentry, powner, plock);
 
   if(found_entry != NULL)
     {
@@ -1929,7 +1903,6 @@ state_status_t state_test(cache_entry_t        * pentry,
     {
       /* Prepare to make call to FSAL for this lock */
       *pstatus = do_lock_op(pentry,
-                            pcontext,
                             FSAL_OP_LOCKT,
                             powner,
                             plock,
@@ -1951,7 +1924,7 @@ state_status_t state_test(cache_entry_t        * pentry,
       else
         LogLock(COMPONENT_STATE, NIV_FULL_DEBUG,
                 "Conflict from FSAL",
-                pentry, pcontext, *holder, conflict);
+                pentry, *holder, conflict);
     }
 
   if(isFullDebug(COMPONENT_STATE) && isFullDebug(COMPONENT_MEMLEAKS))
@@ -1968,7 +1941,7 @@ state_status_t state_test(cache_entry_t        * pentry,
  *
  */
 state_status_t state_lock(cache_entry_t         * pentry,
-                          fsal_op_context_t     * pcontext,
+                          struct user_cred      * creds,
                           state_owner_t         * powner,
                           state_t               * pstate,
                           state_blocking_t        blocking,
@@ -1985,10 +1958,10 @@ state_status_t state_lock(cache_entry_t         * pentry,
   uint64_t               found_entry_end;
   uint64_t               plock_end = lock_end(plock);
   cache_inode_status_t   cache_status;
-  fsal_staticfsinfo_t  * pstatic = pcontext->export_context->fe_static_fs_info;
+  struct fsal_export *export = pentry->handle->export;
   fsal_lock_op_t         lock_op;
 
-  if(cache_inode_open(pentry, pclient, FSAL_O_RDWR, pcontext, &cache_status) != CACHE_INODE_SUCCESS)
+  if(cache_inode_open(pentry, pclient, FSAL_O_RDWR, creds, &cache_status) != CACHE_INODE_SUCCESS)
     {
       *pstatus = cache_inode_status_to_state_status(cache_status);
       LogFullDebug(COMPONENT_STATE,
@@ -2087,7 +2060,6 @@ state_status_t state_lock(cache_entry_t         * pentry,
                    * that will be just fine.
                    */
                   grant_blocked_lock_immediate(pentry,
-                                               pcontext,
                                                found_entry,
                                                pclient);
                 }
@@ -2107,7 +2079,7 @@ state_status_t state_lock(cache_entry_t         * pentry,
     }
 
   /* Decide how to proceed */
-  if(pstatic->lock_support_async_block && blocking == STATE_NLM_BLOCKING)
+  if(export->ops->fs_supports(export, lock_support_async_block) && blocking == STATE_NLM_BLOCKING)
     {
       /* FSAL supports blocking locks, and this is an NLM blocking lock request,
        * request blocking lock from FSAL.
@@ -2178,7 +2150,6 @@ state_status_t state_lock(cache_entry_t         * pentry,
    * Provisionally mark this lock as granted.
    */
   found_entry = create_state_lock_entry(pentry,
-                                        pcontext,
                                         STATE_NON_BLOCKING,
                                         powner,
                                         pstate,
@@ -2193,11 +2164,10 @@ state_status_t state_lock(cache_entry_t         * pentry,
   /* If no conflict in lock list, or FSAL supports async blocking locks,
    * make FSAL call. Don't ask for conflict if we know about a conflict.
    */
-  if(allow || pstatic->lock_support_async_block)
+  if(allow || export->ops->fs_supports(export, lock_support_async_block))
     {
       /* Prepare to make call to FSAL for this lock */
       *pstatus = do_lock_op(pentry,
-                            pcontext,
                             lock_op,
                             powner,
                             plock,
@@ -2214,7 +2184,7 @@ state_status_t state_lock(cache_entry_t         * pentry,
       /* Merge any touching or overlapping locks into this one */
       LogEntry("FSAL lock acquired, merging locks for", found_entry);
 
-      merge_lock_entry(pentry, pcontext, found_entry, pclient);
+      merge_lock_entry(pentry, found_entry, pclient);
 
       /* Insert entry into lock list */
       LogEntry("New entry", found_entry);
@@ -2271,7 +2241,6 @@ state_status_t state_lock(cache_entry_t         * pentry,
  *
  */
 state_status_t state_unlock(cache_entry_t        * pentry,
-                            fsal_op_context_t    * pcontext,
                             state_owner_t        * powner,
                             state_t              * pstate,
                             fsal_lock_param_t    * plock,
@@ -2290,14 +2259,13 @@ state_status_t state_unlock(cache_entry_t        * pentry,
                "----------------------------------------------------------------------");
   LogLock(COMPONENT_STATE, NIV_FULL_DEBUG,
           "Subtracting",
-          pentry, pcontext, powner, plock);
+          pentry, powner, plock);
   LogFullDebug(COMPONENT_STATE,
                "----------------------------------------------------------------------");
 
 #ifdef _USE_BLOCKING_LOCKS
   /* First cancel any blocking locks that might overlap the unlocked range. */
   cancel_blocked_locks_range(pentry,
-                             pcontext,
                              powner,
                              pstate,
                              plock,
@@ -2306,7 +2274,6 @@ state_status_t state_unlock(cache_entry_t        * pentry,
 
   /* Release the lock from cache inode lock list for pentry */
   subtract_lock_from_list(pentry,
-                          pcontext,
                           powner,
                           pstate,
                           plock,
@@ -2329,7 +2296,6 @@ state_status_t state_unlock(cache_entry_t        * pentry,
    * of being granted.
    */
   *pstatus = do_lock_op(pentry,
-                        pcontext,
                         FSAL_OP_UNLOCK,
                         powner,
                         plock,
@@ -2346,7 +2312,7 @@ state_status_t state_unlock(cache_entry_t        * pentry,
   LogFullDebug(COMPONENT_STATE,
                "----------------------------------------------------------------------");
   LogLock(COMPONENT_STATE, NIV_FULL_DEBUG,
-          "Done", pentry, pcontext, powner, plock);
+          "Done", pentry, powner, plock);
   LogFullDebug(COMPONENT_STATE,
                "----------------------------------------------------------------------");
 
@@ -2356,7 +2322,7 @@ state_status_t state_unlock(cache_entry_t        * pentry,
     empty = LogList("Lock List", pentry, &pentry->object.file.lock_list);
 
 #ifdef _USE_BLOCKING_LOCKS
-  grant_blocked_locks(pentry, pcontext, pclient);
+  grant_blocked_locks(pentry, pclient);
 #endif
 
   V(pentry->object.file.lock_list_mutex);
@@ -2406,10 +2372,10 @@ state_status_t state_cancel(cache_entry_t        * pentry,
         continue;
 
       /* Cancel the blocked lock */
-      *pstatus = cancel_blocked_lock(pentry, pcontext, found_entry, pclient);
+      *pstatus = cancel_blocked_lock(pentry, found_entry, pclient);
 
       /* Check to see if we can grant any blocked locks. */
-      grant_blocked_locks(pentry, pcontext, pclient);
+      grant_blocked_locks(pentry, pclient);
 
       break;
     }
@@ -2493,7 +2459,6 @@ state_status_t state_nlm_notify(fsal_op_context_t    * pcontext,
 
       /* Remove all locks held by this NLM Client on the file */
       if(state_unlock(pentry,
-                      pcontext,
                       &owner,
                       pstate,
                       &lock,
@@ -2568,7 +2533,6 @@ state_status_t state_owner_unlock_all(fsal_op_context_t    * pcontext,
 
       /* Remove all locks held by this owner on the file */
       if(state_unlock(pentry,
-                      pcontext,
                       powner,
                       pstate,
                       &lock,

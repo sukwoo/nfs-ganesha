@@ -47,6 +47,7 @@
 #define CMD_BUFFER_SIZE 1024
 #define DEFAULT_CONFIG_FILE "/etc/ganesha/"FS_NAME".ganesha.nfsd.conf"
 
+config_file_t config_struct;
 short HashFileID4(u_int64_t fileid4);
 time_t ServerBootTime;
 
@@ -157,11 +158,6 @@ int main(int argc, char *argv[])
   nfs_start_info_t nfs_start_info;
   fsal_status_t fsal_status;
   unsigned int nfs_version = 3;
-  path_str_t fsal_path_lib[NB_AVAILABLE_FSAL];
-#ifdef _USE_SHARED_FSAL
-  int lentab = NB_AVAILABLE_FSAL ;
-#endif
-
   short cache_content_hash;
   char entry_path[MAXPATHLEN];
   int i, nb_char;
@@ -246,26 +242,22 @@ int main(int argc, char *argv[])
 
   nfs_prereq_init("convert_fh", "localhost", NIV_MAJ, "/dev/tty");
 
-#ifdef _USE_SHARED_FSAL
-  if(nfs_get_fsalpathlib_conf(config_path, fsal_path_lib, &lentab))
+  /* Parse the configuration file so we all know what is going on. */
+
+  if(config_path == NULL) {
+	  LogFatal(COMPONENT_INIT,
+		   "start_fsals: No configuration file named.");
+	  return 1;
+  }
+  config_struct = config_ParseFile(config_path);
+
+  if(!config_struct)
     {
-      fprintf(stderr, "NFS MAIN: Error parsing configuration file.");
-      exit(1);
-    }
-#endif                          /* _USE_SHARED_FSAL */
-
-  /* Load the FSAL library (if needed) */
-  if(!FSAL_LoadLibrary((char *)fsal_path_lib))  /** @todo: this part of the code and this utility has to be checked */
-    {
-      fprintf(stderr, "NFS MAIN: Could not load FSAL dynamic library %s", (char *)fsal_path_lib[0]);
-      exit(1);
+      LogFatal(COMPONENT_INIT, "Error while parsing %s: %s",
+               config_path, config_GetErrorMsg());
     }
 
-  /* Get the FSAL functions */
-  FSAL_LoadFunctions();
-
-  /* Get the FSAL consts */
-  FSAL_LoadConsts();
+  start_fsals(config_struct);
 
   /* initialize default parameters */
 
@@ -273,7 +265,7 @@ int main(int argc, char *argv[])
 
   /* parse configuration file */
 
-  if(nfs_set_param_from_conf(&nfs_start_info))
+  if(nfs_set_param_from_conf(config_struct, &nfs_start_info))
     {
       fprintf(stderr, "Error parsing configuration file '%s'", config_path);
       exit(1);
@@ -299,19 +291,7 @@ int main(int argc, char *argv[])
   if(!flag_i)
     {
 
-#ifdef _USE_SHARED_FSAL
-      fsal_status = FSAL_Init(&nfs_param.fsal_param[0]);
-#else
-      fsal_status = FSAL_Init(&nfs_param.fsal_param);
-#endif
-      if(FSAL_IS_ERROR(fsal_status))
-        {
-          /* Failed init */
-          fprintf(stderr, "FSAL library could not be initialized, major=%d minor=%d\n",
-                  fsal_status.major, fsal_status.minor);
-          exit(1);
-        }
-
+      init_fsals(config_struct); /* init the FSALs from the config */
       strncpy(str, argv[optind], 2 * CMD_BUFFER_SIZE);
 
       switch (nfs_version)

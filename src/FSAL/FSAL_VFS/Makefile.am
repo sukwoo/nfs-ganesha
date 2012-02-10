@@ -20,8 +20,7 @@ libfsalvfs_la_SOURCES = fsal_access.c    \
                         fsal_rcp.c	 \
 	                fsal_truncate.c  \
                         fsal_attrs.c     \
-                        fsal_init.c	 \
-	                fsal_lookup.c    \
+                        fsal_lookup.c    \
                         fsal_convert.c   \
                         fsal_rename.c    \
                         fsal_symlinks.c	 \
@@ -34,6 +33,10 @@ libfsalvfs_la_SOURCES = fsal_access.c    \
                         fsal_local_op.c  \
                         fsal_internal.h  \
                         fsal_xattrs.c    \
+			main.c		 \
+			export.c	 \
+			handle.c	 \
+			file.c		 \
 	                ../../include/fsal.h                     \
                         ../../include/fsal_types.h	         \
 	                ../../include/err_fsal.h	         \

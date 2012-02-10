@@ -211,7 +211,6 @@ int nfs4_Init_state_id(nfs_state_id_parameter_t param)
  * pentry is supposed to be locked when this function is called.
  *
  * @param pentry      [INOUT] related pentry (should be a REGULAR FILE)
- * @param pcontext    [IN]    FSAL's operation context
  * @param popen_owner [IN]    the NFSV4.x open_owner for whom this stateid is built
  * @param other       [OUT]   the stateid.other object (a char[OTHERSIZE] string)
  *
@@ -220,13 +219,13 @@ int nfs4_Init_state_id(nfs_state_id_parameter_t param)
  */
 
 int nfs4_BuildStateId_Other(cache_entry_t     * pentry,
-                            fsal_op_context_t * pcontext,
                             state_owner_t     * popen_owner,
                             char              * other)
 {
   uint64_t fileid_digest = 0;
   u_int16_t srvboot_digest = 0;
   uint32_t open_owner_digest = 0;
+  fsal_status_t fsal_status;
 
   LogFullDebug(COMPONENT_STATE,
                "pentry=%p popen_owner=%u|%s",
@@ -234,11 +233,13 @@ int nfs4_BuildStateId_Other(cache_entry_t     * pentry,
                popen_owner->so_owner_len,
                popen_owner->so_owner_val);
 
-  /* Get several digests to build the stateid : the server boot time, the fileid and a monotonic counter */
-  if(FSAL_IS_ERROR(FSAL_DigestHandle(FSAL_GET_EXP_CTX(pcontext),
-                                     FSAL_DIGEST_FILEID3,
-                                     &(pentry->handle),
-                                     (caddr_t) & fileid_digest)))
+  /* Get several digests to build the stateid :
+   * the server boot time, the fileid and a monotonic counter
+   */
+  fsal_status = pentry->handle->ops->handle_digest(pentry->handle,
+						   FSAL_DIGEST_FILEID3,
+						   (caddr_t) & fileid_digest);
+  if(FSAL_IS_ERROR(fsal_status))
     return 0;
 
   srvboot_digest = (u_int16_t) (ServerBootTime & 0x0000FFFF);;

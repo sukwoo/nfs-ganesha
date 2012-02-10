@@ -1158,7 +1158,7 @@ int nfs4_op_lookup_xattr(struct nfs_argop4 *op,
   char strname[MAXNAMLEN];
   fsal_status_t fsal_status;
   cache_inode_status_t cache_status;
-  fsal_handle_t *pfsal_handle = NULL;
+  struct fsal_obj_handle *obj_hdl = NULL;
   unsigned int xattr_id = 0;
   file_handle_v4_t *pfile_handle = NULL;
 
@@ -1168,7 +1168,7 @@ int nfs4_op_lookup_xattr(struct nfs_argop4 *op,
   res_LOOKUP4.status = NFS4_OK;
 
   /* Get the FSAL Handle fo the current object */
-  pfsal_handle = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
+  obj_hdl = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
   if(cache_status != CACHE_INODE_SUCCESS)
     {
       res_LOOKUP4.status = nfs4_Errno(cache_status);
@@ -1189,7 +1189,7 @@ int nfs4_op_lookup_xattr(struct nfs_argop4 *op,
     }
 
   /* Try to get a FSAL_XAttr of that name */
-  fsal_status = FSAL_GetXAttrIdByName(pfsal_handle, &name, data->pcontext, &xattr_id);
+  fsal_status = obj_hdl->ops->getextattr_id_by_name(obj_hdl, name.name, &xattr_id);
   if(FSAL_IS_ERROR(fsal_status))
     {
       return NFS4ERR_NOENT;
@@ -1269,7 +1269,7 @@ int nfs4_op_readdir_xattr(struct nfs_argop4 *op,
   unsigned long space_used = 0;
   entry4 *entry_nfs_array = NULL;
   entry_name_array_item_t *entry_name_array = NULL;
-  fsal_handle_t *pfsal_handle = NULL;
+  struct fsal_obj_handle *obj_hdl = NULL;
   fsal_status_t fsal_status;
   cache_inode_status_t cache_status = CACHE_INODE_SUCCESS;
   file_handle_v4_t file_handle;
@@ -1366,7 +1366,7 @@ int nfs4_op_readdir_xattr(struct nfs_argop4 *op,
   res_READDIR4.READDIR4res_u.resok4.reply.eof = FALSE;
 
   /* Get the fsal_handle */
-  pfsal_handle = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
+  obj_hdl = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
   if(cache_status != CACHE_INODE_SUCCESS)
     {
       res_READDIR4.status = NFS4ERR_SERVERFAULT;
@@ -1374,11 +1374,8 @@ int nfs4_op_readdir_xattr(struct nfs_argop4 *op,
     }
 
   /* Used FSAL extended attributes functions */
-  fsal_status = FSAL_ListXAttrs(pfsal_handle,
-                                cookie,
-                                data->pcontext,
-                                xattrs_tab,
-                                estimated_num_entries, &nb_xattrs_read, &eod_met);
+  fsal_status = obj_hdl->ops->list_ext_attrs(obj_hdl, cookie, xattrs_tab,
+					     estimated_num_entries, &nb_xattrs_read, &eod_met);
   if(FSAL_IS_ERROR(fsal_status))
     {
       res_READDIR4.status = NFS4ERR_SERVERFAULT;
@@ -1497,7 +1494,7 @@ int nfs4_op_open_xattr(struct nfs_argop4 *op,
   char strname[MAXNAMLEN];
   fsal_status_t fsal_status;
   cache_inode_status_t cache_status;
-  fsal_handle_t *pfsal_handle = NULL;
+  struct fsal_obj_handle *obj_hdl = NULL;
   unsigned int xattr_id = 0;
   file_handle_v4_t *pfile_handle = NULL;
   char empty_buff[16] = "";
@@ -1505,7 +1502,7 @@ int nfs4_op_open_xattr(struct nfs_argop4 *op,
   res_OPEN4.status = NFS4_OK;
 
   /* Get the FSAL Handle fo the current object */
-  pfsal_handle = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
+  obj_hdl = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
   if(cache_status != CACHE_INODE_SUCCESS)
     {
       res_OPEN4.status = nfs4_Errno(cache_status);
@@ -1531,10 +1528,10 @@ int nfs4_op_open_xattr(struct nfs_argop4 *op,
     case OPEN4_CREATE:
       /* To be done later */
       /* set empty attr */
-      fsal_status = FSAL_SetXAttrValue(pfsal_handle,
-                                       &name,
-                                       data->pcontext, empty_buff, sizeof(empty_buff),
-                                       TRUE);
+      fsal_status = obj_hdl->ops->setextattr_value(obj_hdl,
+						   name.name,
+						   empty_buff, sizeof(empty_buff),
+						   TRUE);
 
       if(FSAL_IS_ERROR(fsal_status))
         {
@@ -1543,7 +1540,7 @@ int nfs4_op_open_xattr(struct nfs_argop4 *op,
         }
 
       /* Now, getr the id */
-      fsal_status = FSAL_GetXAttrIdByName(pfsal_handle, &name, data->pcontext, &xattr_id);
+      fsal_status = obj_hdl->ops->getextattr_id_by_name(obj_hdl, name.name, &xattr_id);
       if(FSAL_IS_ERROR(fsal_status))
         {
           res_OPEN4.status = NFS4ERR_NOENT;
@@ -1567,7 +1564,7 @@ int nfs4_op_open_xattr(struct nfs_argop4 *op,
     case OPEN4_NOCREATE:
 
       /* Try to get a FSAL_XAttr of that name */
-      fsal_status = FSAL_GetXAttrIdByName(pfsal_handle, &name, data->pcontext, &xattr_id);
+      fsal_status = obj_hdl->ops->getextattr_id_by_name(obj_hdl, name.name, &xattr_id);
       if(FSAL_IS_ERROR(fsal_status))
         {
           res_OPEN4.status = NFS4ERR_NOENT;
@@ -1610,7 +1607,7 @@ int nfs4_op_open_xattr(struct nfs_argop4 *op,
 int nfs4_op_read_xattr(struct nfs_argop4 *op,
                        compound_data_t * data, struct nfs_resop4 *resp)
 {
-  fsal_handle_t *pfsal_handle = NULL;
+  struct fsal_obj_handle *obj_hdl = NULL;
   file_handle_v4_t *pfile_handle = NULL;
   unsigned int xattr_id = 0;
   cache_inode_status_t cache_status;
@@ -1619,7 +1616,7 @@ int nfs4_op_read_xattr(struct nfs_argop4 *op,
   size_t size_returned;
 
   /* Get the FSAL Handle fo the current object */
-  pfsal_handle = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
+  obj_hdl = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
   if(cache_status != CACHE_INODE_SUCCESS)
     {
       res_LOOKUP4.status = nfs4_Errno(cache_status);
@@ -1627,7 +1624,7 @@ int nfs4_op_read_xattr(struct nfs_argop4 *op,
     }
 
   /* Get the FSAL Handle fo the current object */
-  pfsal_handle = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
+  obj_hdl = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
   if(cache_status != CACHE_INODE_SUCCESS)
     {
       res_LOOKUP4.status = nfs4_Errno(cache_status);
@@ -1651,10 +1648,8 @@ int nfs4_op_read_xattr(struct nfs_argop4 *op,
     }
   memset(buffer, 0, XATTR_BUFFERSIZE);
 
-  fsal_status = FSAL_GetXAttrValueById(pfsal_handle,
-                                       xattr_id,
-                                       data->pcontext,
-                                       buffer, XATTR_BUFFERSIZE, &size_returned);
+  fsal_status = obj_hdl->ops->getextattr_value_by_id(obj_hdl, xattr_id,
+						     buffer, XATTR_BUFFERSIZE, &size_returned);
 
   if(FSAL_IS_ERROR(fsal_status))
     {
@@ -1690,14 +1685,14 @@ extern verifier4 NFS4_write_verifier;   /* NFS V4 write verifier from nfs_Main.c
 int nfs4_op_write_xattr(struct nfs_argop4 *op,
                         compound_data_t * data, struct nfs_resop4 *resp)
 {
-  fsal_handle_t *pfsal_handle = NULL;
+  struct fsal_obj_handle *obj_hdl = NULL;
   file_handle_v4_t *pfile_handle = NULL;
   unsigned int xattr_id = 0;
   cache_inode_status_t cache_status;
   fsal_status_t fsal_status;
 
   /* Get the FSAL Handle fo the current object */
-  pfsal_handle = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
+  obj_hdl = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
   if(cache_status != CACHE_INODE_SUCCESS)
     {
       res_LOOKUP4.status = nfs4_Errno(cache_status);
@@ -1705,7 +1700,7 @@ int nfs4_op_write_xattr(struct nfs_argop4 *op,
     }
 
   /* Get the FSAL Handle fo the current object */
-  pfsal_handle = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
+  obj_hdl = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
   if(cache_status != CACHE_INODE_SUCCESS)
     {
       res_LOOKUP4.status = nfs4_Errno(cache_status);
@@ -1721,11 +1716,9 @@ int nfs4_op_write_xattr(struct nfs_argop4 *op,
    * xattr_pos > 1 ==> The FH is the one for the xattr ghost file whose xattr_id = xattr_pos -2 */
   xattr_id = pfile_handle->xattr_pos - 2;
 
-  fsal_status = FSAL_SetXAttrValueById(pfsal_handle,
-                                       xattr_id,
-                                       data->pcontext,
-                                       arg_WRITE4.data.data_val,
-                                       arg_WRITE4.data.data_len);
+  fsal_status = obj_hdl->ops->setextattr_value_by_id(obj_hdl, xattr_id,
+						     arg_WRITE4.data.data_val,
+						     arg_WRITE4.data.data_len);
 
   if(FSAL_IS_ERROR(fsal_status))
     {
@@ -1750,7 +1743,7 @@ int nfs4_op_remove_xattr(struct nfs_argop4 *op, compound_data_t * data,
 {
   fsal_status_t fsal_status;
   cache_inode_status_t cache_status;
-  fsal_handle_t *pfsal_handle = NULL;
+  struct fsal_obj_handle *obj_hdl = NULL;
   fsal_name_t name;
 
   /* Check for name length */
@@ -1779,7 +1772,7 @@ int nfs4_op_remove_xattr(struct nfs_argop4 *op, compound_data_t * data,
     }
 
   /* Get the FSAL Handle fo the current object */
-  pfsal_handle = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
+  obj_hdl = cache_inode_get_fsal_handle(data->current_entry, &cache_status);
   if(cache_status != CACHE_INODE_SUCCESS)
     {
       res_REMOVE4.status = nfs4_Errno(cache_status);
@@ -1794,7 +1787,7 @@ int nfs4_op_remove_xattr(struct nfs_argop4 *op, compound_data_t * data,
       return res_REMOVE4.status;
     }
 
-  fsal_status = FSAL_RemoveXAttrByName(pfsal_handle, data->pcontext, &name);
+  fsal_status = obj_hdl->ops->remove_extattr_by_name(obj_hdl, name.name);
   if(FSAL_IS_ERROR(fsal_status))
     {
       res_REMOVE4.status = NFS4ERR_SERVERFAULT;

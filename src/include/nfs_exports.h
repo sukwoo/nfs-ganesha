@@ -172,7 +172,7 @@ typedef struct exportlist__
                                      * The old (FALSE) is Access and Access_Type. */
 
   fsal_fsid_t filesystem_id;    /* fileset id         */
-  fsal_handle_t *proot_handle;  /* FSAL handle for the root of the file system */
+  struct fsal_obj_handle *proot_handle;  /* FSAL handle for the root of the file system */
 
   uid_t anonymous_uid;          /* root uid when no root access is available   */
                                 /* uid when access is available but all users are being squashed. */
@@ -197,7 +197,7 @@ typedef struct exportlist__
   unsigned int UseCookieVerifier;       /* Is Cookie verifier to be used ?                   */
   exportlist_client_t clients;  /* allowed clients                                   */
   struct exportlist__ *next;    /* next entry                                        */
-  unsigned int fsalid ;
+  struct fsal_export *export_hdl;	/* handle into our FSAL */
 
   cache_inode_policy_t cache_inode_policy ;
 
@@ -209,14 +209,6 @@ typedef struct exportlist__
   struct fsal_up_filter_list_t_ *fsal_up_filter_list; /* List of filters to apply through FSAL CB interface. */
 #endif /* _USE_FSAL_UP */
 } exportlist_t;
-
-/* Used to record the uid and gid of the client that made a request. */
-struct user_cred {
-  uid_t caller_uid;
-  gid_t caller_gid;
-  unsigned int caller_glen;
-  gid_t *caller_garray;
-};
 
 /* Constant for options masks */
 #define EXPORT_OPTION_NOSUID          0x00000001        /* mask off setuid mode bit            */
@@ -335,7 +327,7 @@ typedef struct compoud_data
   cache_entry_t *saved_entry;                         /**< cache entry related to saved filehandle                       */
   cache_inode_file_type_t current_filetype;           /**< File type associated with the current filehandle and inode    */
   cache_inode_file_type_t saved_filetype;             /**< File type associated with the saved filehandle and inode      */
-  fsal_op_context_t *pcontext;                        /**< Credentials related to this filesets                          */
+  struct user_cred user_credentials;                  /**< Credentials related to this filesets                          */
                                                       /**< (to handle different uid mapping)                             */
   exportlist_t *pexport;                              /**< Export entry related to the request                           */
   exportlist_t *pfullexportlist;                      /**< Pointer to the whole exportlist                               */
@@ -358,10 +350,6 @@ exportlist_t *nfs_Get_export_by_id(exportlist_t * exportroot, unsigned short exp
 int nfs_check_anon(exportlist_client_entry_t * pexport_client,
                     exportlist_t * pexport,
                     struct user_cred *user_credentials);
-int nfs_build_fsal_context(struct svc_req *ptr_req,
-                           exportlist_t * pexport,
-                           fsal_op_context_t * pcontext,
-                           struct user_cred *user_credentials);
 int get_req_uid_gid(struct svc_req *ptr_req,
                     exportlist_t * pexport,
                     struct user_cred *user_credentials);

@@ -56,6 +56,7 @@
 #include <time.h>
 #include <pthread.h>
 
+#if 0
 /**
  *
  * cache_inode_readdir_nonamecache: Reads a directory without populating the name cache (no dirents created).
@@ -104,13 +105,6 @@ static cache_inode_status_t cache_inode_readdir_nonamecache( cache_entry_t * pen
 
   /* Set the return default to CACHE_INODE_SUCCESS */
   *pstatus = CACHE_INODE_SUCCESS;
-
-  /* Only DIRECTORY entries are concerned */
-  if(pentry_dir->internal_md.type != DIRECTORY)
-    {
-      *pstatus = CACHE_INODE_BAD_TYPE;
-      return *pstatus;
-    }
 
   LogFullDebug(COMPONENT_CACHE_INODE,
                "About to readdir in  cache_inode_readdir_nonamecache: pentry=%p "
@@ -184,11 +178,6 @@ static cache_inode_status_t cache_inode_readdir_nonamecache( cache_entry_t * pen
 
   for( iter = 0 ; iter < *pnbfound ; iter ++ )
    {
-      /* cache_inode_readdir does not return . or .. */
-      if(!FSAL_namecmp(&(fsal_dirent_array[iter].name), (fsal_name_t *) & FSAL_DOT) ||
-         !FSAL_namecmp(&(fsal_dirent_array[iter].name), (fsal_name_t *) & FSAL_DOT_DOT))
-              continue;
-
       /* Get the related pentry without populating the name cache (but eventually populating the attrs cache */
       entry_fsdata.handle = fsal_dirent_array[iter].handle;
       entry_fsdata.cookie = 0; /* XXX needed? */
@@ -209,7 +198,6 @@ static cache_inode_status_t cache_inode_readdir_nonamecache( cache_entry_t * pen
                                                          &fsal_dirent_array[iter].attributes,
                                                          ht,
                                                          pclient,
-                                                         pcontext,
                                                          pstatus ) ) == NULL )
           return *pstatus ;
 
@@ -257,7 +245,7 @@ static cache_inode_status_t cache_inode_readdir_nonamecache( cache_entry_t * pen
 
   return CACHE_INODE_SUCCESS ;
 } /* cache_inode_readdir_nomanecache */
-
+#endif
 
 /**
  *
@@ -271,6 +259,7 @@ static cache_inode_status_t cache_inode_readdir_nonamecache( cache_entry_t * pen
  * @param pclient [INOUT] resource allocated by the client for the nfs management.
  *
  * @ return nothing (void function)
+ * FIXME: is this really safe anymore? there may be ref counts and links to structures.
  *
  */
 void cache_inode_release_dirent(  cache_inode_dir_entry_t ** dirent_array,
@@ -510,7 +499,6 @@ cache_inode_status_t cache_inode_add_cached_dirent(
     hash_table_t * ht,
     cache_inode_dir_entry_t **pnew_dir_entry,
     cache_inode_client_t * pclient,
-    fsal_op_context_t * pcontext,
     cache_inode_status_t * pstatus)
 {
   fsal_status_t fsal_status;
@@ -773,6 +761,108 @@ static void debug_print_dirents(cache_entry_t *dir_pentry)
 }
 #endif
 
+/* state to be passed to callbacks
+ */
+
+struct cache_inode_populate_cb_state {
+	cache_entry_t *pentry_dir;
+	cache_inode_client_t *pclient;
+	cache_inode_status_t *pstatus;
+	cache_inode_policy_t policy;
+	hash_table_t * ht;
+	uint64_t offset_cookie;
+};
+
+/**
+ * populate
+ * callback to populate a single dir entry from the readdir
+ * we do not use things like cache_inode_fsal_type_convert
+ * or fsal_path_t here for a reason, simplification of interface
+ * and avoidance of redundant artifacts that could be "grandfathered"
+ * into the api for all time.
+ */
+
+static fsal_status_t populate(const char *name,
+			      struct fsal_obj_handle *dir_hdl,
+			      void *dir_state,
+			      struct fsal_cookie *cookie)
+{
+	struct cache_inode_populate_cb_state *state
+		= (struct cache_inode_cb_state *)dir_state;
+	struct fsal_obj_handle *entry_hdl;
+	cache_inode_create_arg_t create_arg;
+	cache_inode_dir_entry_t *new_dir_entry = NULL;
+	cache_inode_fsal_data_t new_entry_fsdata;
+	cache_entry_t *pentry = NULL;
+	fsal_status_t status;
+	fsal_name_t entry_name;
+
+	status = FSAL_str2name(name, FSAL_MAX_PATH_LEN, &entry_name);
+	if(FSAL_IS_ERROR(status))
+		return status;
+	status = dir_hdl->ops->lookup(dir_hdl, name, &entry_hdl);
+	if(FSAL_IS_ERROR(status)) {
+		return status;
+	}
+	entry_hdl->attributes.asked_attributes = state->pclient->attrmask;
+	status = dir_hdl->ops->getattrs(dir_hdl, &dir_hdl->attributes);
+	if(FSAL_IS_ERROR(status))
+		goto error;
+	if(entry_hdl->type == FSAL_TYPE_LNK) {
+		status = entry_hdl->ops->readlink(entry_hdl,
+						  create_arg.link_content.path,
+						  FSAL_MAX_PATH_LEN);
+		if(FSAL_IS_ERROR(status))
+			goto error;
+		
+		/* hack FSAL_str2path bits for now */
+		create_arg.link_content.len = strlen(create_arg.link_content.path);
+	}
+	new_entry_fsdata.handle = entry_hdl;
+	new_entry_fsdata.cookie = 0; /* what is this I copied? */
+	pentry = cache_inode_new_entry(&new_entry_fsdata,
+				       &entry_hdl->attributes,
+				       cache_inode_fsal_type_convert(entry_hdl->type),
+				       state->policy,
+				       &create_arg,
+				       NULL,
+				       state->ht,
+				       state->pclient,
+				       FALSE,
+				       state->pstatus);
+	if(pentry == NULL) {
+		status.major = ERR_FSAL_NOENT; /* error for signalling cache inode errors */
+		status.minor = *state->pstatus;
+		goto error;
+	}
+	*state->pstatus = cache_inode_add_cached_dirent(state->pentry_dir,
+						      &entry_name,
+						      pentry,
+						      state->ht,
+						      &new_dir_entry,
+						      state->pclient,
+						      state->pstatus);
+	if(*state->pstatus != CACHE_INODE_SUCCESS &&
+	   *state->pstatus != CACHE_INODE_ENTRY_EXISTS) {
+		status.major = ERR_FSAL_NOENT;
+		status.minor = *state->pstatus;
+		goto error;
+	}
+	if(*state->pstatus != CACHE_INODE_ENTRY_EXISTS) {
+		/* somehow make the cookie into a uint64_t */
+		new_dir_entry->fsal_cookie = *cookie; /* struct copy */
+		new_dir_entry->cookie = state->offset_cookie;
+		state->offset_cookie++; /* still and offset */
+		(void)avltree_insert(&new_dir_entry->node_c,
+				     &state->pentry_dir->object.dir.cookies);
+	}
+	ReturnCode(ERR_FSAL_NO_ERROR, 0);
+
+error:
+	entry_hdl->ops->release(entry_hdl);
+	ReturnCode(status.major, status.minor);
+}
+			      
 /**
  *
  * cache_inode_readdir_populate: fully reads a directory in FSAL and caches
@@ -790,45 +880,20 @@ static void debug_print_dirents(cache_entry_t *dir_pentry)
  * @param pstatus [OUT] returned status.
  *
  */
-cache_inode_status_t cache_inode_readdir_populate(
+static cache_inode_status_t cache_inode_readdir_populate(
     cache_entry_t * pentry_dir,
     cache_inode_policy_t policy,
     hash_table_t * ht,
     cache_inode_client_t * pclient,
-    fsal_op_context_t * pcontext,
     cache_inode_status_t * pstatus)
 {
-  fsal_dir_t fsal_dirhandle;
   fsal_status_t fsal_status;
-  fsal_attrib_list_t dir_attributes;
-
-  fsal_cookie_t begin_cookie;
-  fsal_cookie_t end_cookie;
-  fsal_count_t nbfound;
-  fsal_count_t iter;
   fsal_boolean_t fsal_eod;
-
-  cache_entry_t *pentry = NULL;
-  cache_entry_t *pentry_parent = pentry_dir;
-  fsal_attrib_list_t object_attributes;
-
-  cache_inode_create_arg_t create_arg;
-  cache_inode_file_type_t type;
-  cache_inode_status_t cache_status;
-  fsal_dirent_t array_dirent[FSAL_READDIR_SIZE + 20];
-  cache_inode_fsal_data_t new_entry_fsdata;
-  cache_inode_dir_entry_t *new_dir_entry = NULL;
-  uint64_t i = 0;
+  struct cache_inode_populate_cb_state state;
 
   /* Set the return default to CACHE_INODE_SUCCESS */
   *pstatus = CACHE_INODE_SUCCESS;
 
-  /* Only DIRECTORY entries are concerned */
-  if(pentry_dir->internal_md.type != DIRECTORY)
-    {
-      *pstatus = CACHE_INODE_BAD_TYPE;
-      return *pstatus;
-    }
 #ifdef _USE_MFSL_ASYNC
   /* If entry is asynchronous (via MFSL), it should not be repopulated until
      it is synced */
@@ -855,16 +920,19 @@ cache_inode_status_t cache_inode_readdir_populate(
 					      pstatus) != CACHE_INODE_SUCCESS)
     return *pstatus;
 
-  /* Open the directory */
-  dir_attributes.asked_attributes = pclient->attrmask;
-#ifdef _USE_MFSL
-  fsal_status = MFSL_opendir(&pentry_dir->mobject,
-                             pcontext,
-                             &pclient->mfsl_context, &fsal_dirhandle, &dir_attributes, NULL);
-#else
-  fsal_status = FSAL_opendir(&pentry_dir->handle,
-                             pcontext, &fsal_dirhandle, &dir_attributes);
-#endif
+  state.pentry_dir = pentry_dir;
+  state.pclient = pclient;
+  state.pstatus = pstatus;
+  state.policy = policy;
+  state.ht = ht;
+  state.offset_cookie = 0;
+
+  fsal_status = pentry_dir->handle->ops->readdir(pentry_dir->handle,
+						 0, /* read the whole dir */
+						 NULL, /* starting at the beginning */
+						 (void *)&state,
+						 populate,
+						 &fsal_eod);
   if(FSAL_IS_ERROR(fsal_status))
     {
       *pstatus = cache_inode_error_convert(fsal_status);
@@ -885,183 +953,6 @@ cache_inode_status_t cache_inode_readdir_populate(
 
           *pstatus = CACHE_INODE_FSAL_ESTALE;
         }
-      return *pstatus;
-    }
-
-  /* Loop for readding the directory */
-  FSAL_SET_COOKIE_BEGINNING(begin_cookie);
-  FSAL_SET_COOKIE_BEGINNING(end_cookie);
-  fsal_eod = FALSE;
-
-  do
-    {
-#ifdef _USE_MFSL
-      fsal_status = MFSL_readdir(&fsal_dirhandle,
-                                 begin_cookie,
-                                 pclient->attrmask,
-                                 FSAL_READDIR_SIZE * sizeof(fsal_dirent_t),
-                                 array_dirent,
-                                 &end_cookie,
-                                 &nbfound, &fsal_eod, &pclient->mfsl_context, NULL);
-#else
-      fsal_status = FSAL_readdir(&fsal_dirhandle,
-                                 begin_cookie,
-                                 pclient->attrmask,
-                                 FSAL_READDIR_SIZE * sizeof(fsal_dirent_t),
-                                 array_dirent, &end_cookie, &nbfound, &fsal_eod);
-#endif
-
-      if(FSAL_IS_ERROR(fsal_status))
-        {
-          *pstatus = cache_inode_error_convert(fsal_status);
-          return *pstatus;
-        }
-
-      for(iter = 0; iter < nbfound; iter++)
-        {
-          LogFullDebug(COMPONENT_CACHE_INODE,
-                       "cache readdir populate found entry %s",
-                       array_dirent[iter].name.name);
-
-          /* It is not needed to cache '.' and '..' */
-          if(!FSAL_namecmp(&(array_dirent[iter].name), (fsal_name_t *) & FSAL_DOT) ||
-             !FSAL_namecmp(&(array_dirent[iter].name), (fsal_name_t *) & FSAL_DOT_DOT))
-            {
-              LogFullDebug(COMPONENT_CACHE_INODE,
-                           "cache readdir populate : do not cache . and ..");
-              continue;
-            }
-
-          /* If dir entry is a symbolic link, its content has to be read */
-          if((type =
-              cache_inode_fsal_type_convert(array_dirent[iter].attributes.type)) ==
-             SYMBOLIC_LINK)
-            {
-#ifdef _USE_MFSL
-              mfsl_object_t tmp_mfsl;
-#endif
-              /* Let's read the link for caching its value */
-              object_attributes.asked_attributes = pclient->attrmask;
-              if( CACHE_INODE_KEEP_CONTENT( pentry_dir->policy ) )
-                {
-#ifdef _USE_MFSL
-                  tmp_mfsl.handle = array_dirent[iter].handle;
-                  fsal_status = MFSL_readlink(&tmp_mfsl,
-                                              pcontext,
-                                              &pclient->mfsl_context,
-                                              &create_arg.link_content, &object_attributes, NULL);
-#else
-                  fsal_status = FSAL_readlink(&array_dirent[iter].handle,
-                                              pcontext,
-                                              &create_arg.link_content, &object_attributes);
-#endif
-                }
-              else
-                {
-                   fsal_status.major = ERR_FSAL_NO_ERROR ;
-                   fsal_status.minor = 0 ;
-                }
-
-              if(FSAL_IS_ERROR(fsal_status))
-                {
-                  *pstatus = cache_inode_error_convert(fsal_status);
-
-                  if(fsal_status.major == ERR_FSAL_STALE)
-                    {
-                      cache_inode_status_t kill_status;
-
-                      LogEvent(COMPONENT_CACHE_INODE,
-                               "cache_inode_readdir: Stale FSAL File Handle detected for pentry = %p, fsal_status=(%u,%u)",
-                               pentry_dir, fsal_status.major, fsal_status.minor );
-
-                      if(cache_inode_kill_entry(pentry_dir, WT_LOCK, ht, pclient, &kill_status) !=
-                         CACHE_INODE_SUCCESS)
-                        LogCrit(COMPONENT_CACHE_INODE,
-                                "cache_inode_readdir: Could not kill entry %p, status = %u",
-                                pentry_dir, kill_status);
-
-                      *pstatus = CACHE_INODE_FSAL_ESTALE;
-                    }
-
-                  return *pstatus;
-                }
-            }
-
-          /* Try adding the entry, if it exists then this existing entry is
-             returned */
-          new_entry_fsdata.handle = array_dirent[iter].handle;
-	  new_entry_fsdata.cookie = 0; /* XXX needed? */
-
-          if((pentry = cache_inode_new_entry( &new_entry_fsdata,
-		                              &array_dirent[iter].attributes,
-		                              type, 
-                                              policy,
-		                              &create_arg,
-		                              NULL, 
-		                              ht, 
-		                              pclient, 
-		                              pcontext, 
-		                              FALSE,  /* This is population and no creation */
-		                              pstatus)) == NULL)
-            return *pstatus;
-
-          cache_status = cache_inode_add_cached_dirent(
-	      pentry_parent,
-	      &(array_dirent[iter].name),
-	      pentry,
-	      ht,
-	      &new_dir_entry,
-	      pclient,
-	      pcontext,
-	      pstatus);
-
-          if(cache_status != CACHE_INODE_SUCCESS
-             && cache_status != CACHE_INODE_ENTRY_EXISTS)
-            return *pstatus;
-
-          /*
-           * Remember the FSAL readdir cookie associated with this dirent.  This
-           * is needed for partial directory reads.
-           * 
-           * to_uint64 should be a lightweight operation--it is in the current
-           * default implementation.  We think the right thing -should- happen
-           * therefore with if _USE_MFSL. 
-           *
-           * I'm ignoring the status because the default operation is a memcmp--
-           * we lready -have- the cookie. */
-
-          if (cache_status != CACHE_INODE_ENTRY_EXISTS) {
-
-              (void) FSAL_cookie_to_uint64(&array_dirent[iter].handle,
-                                           pcontext, &array_dirent[iter].cookie,
-                                           &new_dir_entry->fsal_cookie);
-
-              /* we are filling in all entries, and the cookie avl was
-               * cleared before adding dirents */
-              new_dir_entry->cookie = i; /* still an offset */
-              (void) avltree_insert(&new_dir_entry->node_c,
-                                    &pentry_parent->object.dir.cookies);
-          } /* !exist */
-
-        } /* iter */
-      
-      /* Get prepared for next step */
-      begin_cookie = end_cookie;
-
-      /* next offset */
-      i++;
-    }
-  while(fsal_eod != TRUE);
-
-  /* Close the directory */
-#ifdef _USE_MFSL
-  fsal_status = MFSL_closedir(&fsal_dirhandle, &pclient->mfsl_context, NULL);
-#else
-  fsal_status = FSAL_closedir(&fsal_dirhandle);
-#endif
-  if(FSAL_IS_ERROR(fsal_status))
-    {
-      *pstatus = cache_inode_error_convert(fsal_status);
       return *pstatus;
     }
 
@@ -1176,7 +1067,7 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
                                          hash_table_t *ht,
                                          int *unlock,
                                          cache_inode_client_t *pclient,
-                                         fsal_op_context_t *pcontext,
+                                         struct user_cred *creds,
                                          cache_inode_status_t *pstatus)
 {
   cache_inode_dir_entry_t dirent_key[1], *dirent;
@@ -1229,26 +1120,26 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
       return *pstatus;
     }
 
-  /* Force dir content invalidation if policy enforced no name cache */
-  if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) )
-    return  cache_inode_readdir_nonamecache( dir_pentry,
-                                             policy,
-                                             cookie, 
-                                             nbwanted, 
-                                             pnbfound, 
-                                             pend_cookie,
-                                             peod_met,
-                                             dirent_array, 
-                                             ht, 
-                                             unlock,
-                                             pclient,
-                                             pcontext,
-                                             pstatus ) ;    
+/*   /\* Force dir content invalidation if policy enforced no name cache *\/ */
+/*   if( !CACHE_INODE_KEEP_CONTENT( dir_pentry->policy ) ) */
+/*     return  cache_inode_readdir_nonamecache( dir_pentry, */
+/*                                              policy, */
+/*                                              cookie,  */
+/*                                              nbwanted,  */
+/*                                              pnbfound,  */
+/*                                              pend_cookie, */
+/*                                              peod_met, */
+/*                                              dirent_array,  */
+/*                                              ht,  */
+/*                                              unlock, */
+/*                                              pclient, */
+/*                                              pcontext, */
+/*                                              pstatus ) ;     */
   
   P_w(&dir_pentry->lock);
 
   /* Renew the entry (to avoid having it being garbagged */
-  if(cache_inode_renew_entry(dir_pentry, NULL, ht, pclient, pcontext,
+  if(cache_inode_renew_entry(dir_pentry, NULL, ht, pclient,
 			     pstatus) != CACHE_INODE_SUCCESS)
     {
       (pclient->stat.func_stats.nb_err_retryable[CACHE_INODE_GETATTR])++;
@@ -1275,7 +1166,7 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
   if(cache_inode_access_no_mutex(dir_pentry,
                                  access_mask,
                                  ht, pclient,
-				 pcontext,
+				 creds,
 				 pstatus) != CACHE_INODE_SUCCESS)
     {
       V_w(&dir_pentry->lock);
@@ -1294,7 +1185,7 @@ cache_inode_status_t cache_inode_readdir(cache_entry_t * dir_pentry,
                                     policy,
 		  		    ht,
 				    pclient,
-				    pcontext, pstatus) != CACHE_INODE_SUCCESS)
+				    pstatus) != CACHE_INODE_SUCCESS)
     {
       /* stats */
       (pclient->stat.func_stats.nb_err_unrecover[CACHE_INODE_READDIR])++;
@@ -1440,24 +1331,24 @@ cache_inode_status_t cache_inode_cookieverf(cache_entry_t * pentry,
                                             uint64_t * pverf,
                                             cache_inode_status_t * pstatus)
 {
-  fsal_status_t fsal_status;
-  fsal_handle_t* handle = cache_inode_get_fsal_handle(pentry,
-                                                      pstatus);
+/*   fsal_status_t fsal_status; */
+/*   struct fsal_obj_handle *handle = cache_inode_get_fsal_handle(pentry, */
+/* 							       pstatus); */
 
-  if (*pstatus != CACHE_INODE_SUCCESS)
-    {
-      return *pstatus;
-    }
+/*   if (*pstatus != CACHE_INODE_SUCCESS) */
+/*     { */
+/*       return *pstatus; */
+/*     } */
 
-  fsal_status = FSAL_get_cookieverf(handle, pcontext, pverf);
-  if (FSAL_IS_ERROR(fsal_status))
-    {
-      *pstatus = cache_inode_error_convert(fsal_status);
-    }
-  else
-    {
-      *pstatus = CACHE_INODE_SUCCESS;
-    }
+/*   fsal_status = FSAL_get_cookieverf(handle, pcontext, pverf); */
+/*   if (FSAL_IS_ERROR(fsal_status)) */
+/*     { */
+/*       *pstatus = cache_inode_error_convert(fsal_status); */
+/*     } */
+/*   else */
+/*     { */
+/*       *pstatus = CACHE_INODE_SUCCESS; */
+/*     } */
 
   return *pstatus;
 }

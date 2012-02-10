@@ -101,7 +101,7 @@ cache_inode_status_t cache_inode_kill_entry( cache_entry_t          * pentry,
                                              cache_inode_client_t   * pclient,
                                              cache_inode_status_t   * pstatus )
 {
-  fsal_handle_t *pfsal_handle = NULL;
+  struct fsal_obj_handle *pfsal_handle = NULL;
   cache_inode_fsal_data_t fsaldata;
   cache_inode_parent_entry_t *parent_iter = NULL;
   cache_inode_parent_entry_t *parent_iter_next = NULL;
@@ -182,7 +182,7 @@ cache_inode_status_t cache_inode_kill_entry( cache_entry_t          * pentry,
         }
     }
 
-  fsaldata.handle = *pfsal_handle;
+  fsaldata.handle = pfsal_handle;
   fsaldata.cookie = DIR_START;
 
   /* Use the handle to build the key */
@@ -267,6 +267,9 @@ cache_inode_status_t cache_inode_kill_entry( cache_entry_t          * pentry,
     }
 
   // free_lock( pentry, lock_how ) ; /* Really needed ? The pentry is unaccessible now and will be destroyed */
+
+  /* return the obj handle. figure out get/put.  I'd rather a better deref here */
+  pfsal_handle->ops->release(pfsal_handle);
 
   /* Destroy the mutex associated with the pentry */
   cache_inode_mutex_destroy(pentry);

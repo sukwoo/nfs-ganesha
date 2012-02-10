@@ -41,24 +41,12 @@
 #include "config.h"
 #endif                          /* HAVE_CONFIG_H */
 
+#include "nlm_list.h"
 /* fsal_types contains constants and type definitions for FSAL */
 #include "fsal_types.h"
 #include "common_utils.h"
 
 #ifndef _USE_SWIG
-
-#ifdef _USE_SHARED_FSAL
-/******************************************************
- *    FSAL ID management for multiple FSAL support
- ******************************************************/
-void FSAL_SetId( int fsalid ) ;
-int FSAL_GetId( void ) ;
-int FSAL_Is_Loaded( int fsalid ) ;
-#endif
-int FSAL_param_load_fsal_split( char * param, int * fsalid, char * pathlib ) ;
-int FSAL_name2fsalid( char * fsname ) ;
-char * FSAL_fsalid2name( int fsalid ) ;
-
 
 /******************************************************
  *            Attribute mask management.
@@ -1463,6 +1451,9 @@ typedef struct fsal_const__
   unsigned int fsal_dir_t_size;
 } fsal_const_t;
 
+/* old fsal interface
+ */
+
 int FSAL_LoadLibrary(char *path);
 
 fsal_functions_t FSAL_GetFunctions(void);
@@ -1470,6 +1461,12 @@ void FSAL_LoadFunctions(void);
 
 fsal_const_t FSAL_GetConsts(void);
 void FSAL_LoadConsts(void);
+
+/* new api to replace above
+ */
+
+#include "fsal_api.h"
+#include "FSAL/access_check.h" /* rethink where this should go */
 
 #endif                          /* ! _USE_SWIG */
 

@@ -76,7 +76,7 @@
  * @return Other errors shows a FSAL error.
  *
  */
-cache_inode_status_t cache_inode_invalidate( fsal_handle_t        * pfsal_handle,
+cache_inode_status_t cache_inode_invalidate( struct fsal_obj_handle * pfsal_handle,
                                              fsal_attrib_list_t   * pattr,
                                              hash_table_t         * ht,
                                              cache_inode_client_t * pclient,
@@ -92,7 +92,7 @@ cache_inode_status_t cache_inode_invalidate( fsal_handle_t        * pfsal_handle
     return CACHE_INODE_INVALID_ARGUMENT ;
 
   /* Locate the entry in the cache */
-  fsal_data.handle = *pfsal_handle ;
+  fsal_data.handle = pfsal_handle ;
   fsal_data.cookie = 0;  /* No DIR_CONTINUE is managed here */
 
   /* Turn the input to a hash key */

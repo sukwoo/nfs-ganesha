@@ -206,9 +206,11 @@ static int ci_avl_dir_ck_cmp(const struct avltree_node *lhs,
  * @see FSAL_handlecmp
  *
  */
+/* FIXME: we are using obj handles here but caller et al assume buffers full of bits.
+ * revisit w/Hashtable/Hashtable.c
+ */
 int cache_inode_compare_key_fsal(hash_buffer_t * buff1, hash_buffer_t * buff2)
 {
-  fsal_status_t status;
   cache_inode_fsal_data_t *pfsdata1 = NULL;
   cache_inode_fsal_data_t *pfsdata2 = NULL;
 
@@ -225,7 +227,7 @@ int cache_inode_compare_key_fsal(hash_buffer_t * buff1, hash_buffer_t * buff2)
           pfsdata1 = (cache_inode_fsal_data_t *) (buff1->pdata);
           pfsdata2 = (cache_inode_fsal_data_t *) (buff2->pdata);
 
-          rc = (!FSAL_handlecmp(&pfsdata1->handle, &pfsdata2->handle, &status)
+          rc = (pfsdata1->handle->ops->compare(pfsdata1->handle, pfsdata2->handle) == 0
                 && (pfsdata1->cookie == pfsdata2->cookie)) ? 0 : 1;
 
           return rc;
@@ -346,7 +348,6 @@ void cache_inode_release_fsaldata_key(hash_buffer_t * pkey,
  * @param pentry_dir_prev [IN] if type == DIR_CONTINUE, this is the previous entry in the dir_chain. Unused otherwise.
  * @param ht [INOUT] hash table used for the cache.
  * @param pclient [INOUT]ressource allocated by the client for the nfs management.
- * @param pcontext [IN] FSAL credentials for the operation.
  * @param create_flag [IN] a flag which shows if the entry is newly created or not
  * @param pstatus [OUT] returned status.
  *
@@ -361,7 +362,6 @@ cache_entry_t *cache_inode_new_entry(cache_inode_fsal_data_t   * pfsdata,
                                      cache_entry_t             * pentry_dir_prev,
                                      hash_table_t              * ht,
                                      cache_inode_client_t      * pclient,
-                                     fsal_op_context_t         * pcontext,
                                      unsigned int                create_flag,
                                      cache_inode_status_t      * pstatus)
 {
@@ -443,13 +443,13 @@ cache_entry_t *cache_inode_new_entry(cache_inode_fsal_data_t   * pfsdata,
   if(pfsal_attr == NULL)
     {
        fsal_attributes.asked_attributes = pclient->attrmask;
-       fsal_status = FSAL_getattrs(&pfsdata->handle, pcontext, &fsal_attributes);
+       fsal_status = pfsdata->handle->ops->getattrs(pfsdata->handle, &fsal_attributes);
 
        if(FSAL_IS_ERROR(fsal_status))
          {
            /* Put the entry back in its pool */
            LogCrit(COMPONENT_CACHE_INODE,
-                   "cache_inode_new_entry: FSAL_getattrs failed for pentry = %p",
+                   "cache_inode_new_entry: getattrs failed for pentry = %p",
                    pentry);
            ReleaseToPool(pentry, &pclient->pool_entry);
            *pstatus = cache_inode_error_convert(fsal_status);
@@ -650,26 +650,27 @@ cache_entry_t *cache_inode_new_entry(cache_inode_fsal_data_t   * pfsdata,
         LogDebug(COMPONENT_CACHE_INODE,
                  "cache_inode_new_entry: Adding a FS_JUNCTION pentry=%p policy=%u",
                  pentry, policy);
-
-        fsal_status = FSAL_lookupJunction( &pfsdata->handle, pcontext,
-					   &pentry->handle,
-					   NULL);
+/* FIXME: I don't know what the lookup_junction proto looks like.
+ * where is the junction handle come from here? Expect it to break...
+ */
+	fsal_status = pfsdata->handle->export->ops->lookup_junction(pfsdata->handle->export,
+							    pfsdata->handle, /* handle for now */
+							    &pentry->handle);
         if( FSAL_IS_ERROR( fsal_status ) )
          {
            *pstatus = cache_inode_error_convert(fsal_status);
            LogDebug(COMPONENT_CACHE_INODE,
-                    "cache_inode_new_entry: FSAL_lookupJunction failed");
+                    "cache_inode_new_entry: lookup_junction failed");
            ReleaseToPool(pentry, &pclient->pool_entry);
          }
 
       fsal_attributes.asked_attributes = pclient->attrmask;
-      fsal_status = FSAL_getattrs( &pentry->handle, pcontext,
-				   &fsal_attributes);
+      fsal_status = pentry->handle->ops->getattrs(pentry->handle, &fsal_attributes);
       if( FSAL_IS_ERROR( fsal_status ) )
          {
            *pstatus = cache_inode_error_convert(fsal_status);
            LogDebug(COMPONENT_CACHE_INODE,
-                    "cache_inode_new_entry: FSAL_getattrs on junction fh failed");
+                    "cache_inode_new_entry: getattrs on junction fh failed");
            ReleaseToPool(pentry, &pclient->pool_entry);
          }
 
@@ -776,13 +777,15 @@ cache_entry_t *cache_inode_new_entry(cache_inode_fsal_data_t   * pfsdata,
     nfs4_acl_entry_inc_ref(pentry->attributes.acl);
 #endif                          /* _USE_NFS4_ACL */
 
-  /* if entry is a REGULAR_FILE and has a related data cache entry from a previous server instance that crashed, recover it */
-  /* This is done only when this is not a creation (when creating a new file, it is impossible to have it cached)           */
+  /* if entry is a REGULAR_FILE and has a related data cache entry from a previous
+   * server instance that crashed, recover it.
+   * This is done only when this is not a creation (when creating a new file,
+   * it is impossible to have it cached)           */
   if(type == REGULAR_FILE && create_flag == FALSE)
     {
       cache_content_test_cached(pentry,
                                 (cache_content_client_t *) pclient->pcontent_client,
-                                pcontext, &cache_content_status);
+                                &cache_content_status);
 
       if(cache_content_status == CACHE_CONTENT_SUCCESS)
         {
@@ -791,16 +794,12 @@ cache_entry_t *cache_inode_new_entry(cache_inode_fsal_data_t   * pfsdata,
                    pentry);
 
           /* Adding the cached entry to the data cache */
-          if((pentry->object.file.pentry_content = cache_content_new_entry(pentry,
-                                                                           NULL,
-                                                                           (cache_content_client_t
-                                                                            *)
-                                                                           pclient->
-                                                                           pcontent_client,
-                                                                           RECOVER_ENTRY,
-                                                                           pcontext,
-                                                                           &cache_content_status))
-             == NULL)
+          if((pentry->object.file.pentry_content
+	      = cache_content_new_entry(pentry,
+					NULL,
+					(cache_content_client_t *) pclient->pcontent_client,
+					RECOVER_ENTRY,
+					&cache_content_status)) == NULL)
             {
               LogCrit(COMPONENT_CACHE_INODE,
                       "Error recovering cached data for pentry %p",
@@ -1066,7 +1065,8 @@ cache_inode_status_t cache_inode_valid(cache_entry_t * pentry,
                  "--------> use_fd_cache=%u fileno=%d last_op=%u time(NULL)=%u delta=%u retention=%u",
                  pclient->use_fd_cache, pentry->object.file.open_fd.fileno,
                  (unsigned int)pentry->object.file.open_fd.last_op, (unsigned int)time(NULL),
-                 (unsigned int)(time(NULL) - pentry->object.file.open_fd.last_op), (unsigned int)pclient->retention);
+                 (unsigned int)(time(NULL) - pentry->object.file.open_fd.last_op),
+		 (unsigned int)pclient->retention);
 
   if(pentry->internal_md.type == REGULAR_FILE)
     {
@@ -1272,10 +1272,10 @@ cache_inode_file_type_t cache_inode_fsal_type_convert(fsal_nodetype_t type)
  * FIXME: valid cache entry should be checked long before we get here.
  * this is just dereferencing something that is always there.  Make it gone.
  */
-fsal_handle_t *cache_inode_get_fsal_handle(cache_entry_t * pentry,
+struct fsal_obj_handle *cache_inode_get_fsal_handle(cache_entry_t * pentry,
                                            cache_inode_status_t * pstatus)
 {
-  fsal_handle_t *preturned_handle = NULL;
+  struct fsal_obj_handle *preturned_handle = NULL;
 
   /* Set the return default to CACHE_INODE_SUCCESS */
   *pstatus = CACHE_INODE_SUCCESS;
@@ -1295,7 +1295,7 @@ fsal_handle_t *cache_inode_get_fsal_handle(cache_entry_t * pentry,
 	}
       else
         {
-          preturned_handle = &pentry->handle;
+          preturned_handle = pentry->handle;
           *pstatus = CACHE_INODE_SUCCESS;
          }                       /* switch( pentry->internal_md.type ) */
     }
@@ -1750,6 +1750,9 @@ void cache_inode_print_srvhandle(char *comment, cache_entry_t * pentry)
     }
 
   pfsal_handle = (proxyfsal_handle_t *) &(pentry->handle);
+/* FIXME: this will break
+ */
+
   nfsfh.nfs_fh4_len = pfsal_handle->data.srv_handle_len;
   nfsfh.nfs_fh4_val = pfsal_handle->data.srv_handle_val;
 

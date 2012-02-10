@@ -212,6 +212,18 @@ typedef enum fsal_nodetype__
 
 /** object name.  */
 
+/* Used to record the uid and gid of the client that made a request. */
+struct user_cred {
+  uid_t caller_uid;
+  gid_t caller_gid;
+  unsigned int caller_glen;
+  gid_t *caller_garray;
+};
+
+/* deprecated and replaced by user_cred
+ * used mainly in the fsal_op_context_t which is itself deprecated
+ */
+
 struct user_credentials {
   uid_t user;
   gid_t group;
@@ -238,9 +250,6 @@ static const fsal_name_t FSAL_DOT_DOT = { "..", 2 };
 
 #define FSAL_NAME_INITIALIZER {"",0}
 #define FSAL_PATH_INITIALIZER {"",0}
-
-/* Do not include fsal_types for the FSAL is compiled with dlopen */
-#ifndef _USE_SHARED_FSAL
 
 #ifdef _USE_GHOSTFS
 #include "FSAL/FSAL_GHOST_FS/fsal_types.h"
@@ -272,11 +281,6 @@ static const fsal_name_t FSAL_DOT_DOT = { "..", 2 };
 #else                           /* no _USE_<filesystem> flag ! */
 #error "No filesystem compilation flag set for the FSAL."
 #endif /* _USE_GHOSTFS */
-
-#else /* _USE_SHARED_FSAL */
-#define CONF_LABEL_FS_SPECIFIC   "DYNFSAL"
-
-#endif                          /* _USE_SHARED_FSAL */
 
 #include "fsal_glue.h"
 
@@ -660,7 +664,7 @@ typedef fsal_uint_t fsal_accessflags_t;
 typedef struct fsal_dirent__
 {
 
-  fsal_handle_t handle;             /**< directory entry handle. */
+  struct fsal_obj_handle *handle;   /**< directory entry handle. */
   fsal_name_t name;                 /**< directory entry name.   */
   fsal_cookie_t cookie;             /**< cookie for reading dir
                                          from this entry         */
@@ -792,6 +796,29 @@ typedef fsal_ushort_t fsal_fhexptype_t;
         break;                                                    \
     }
 
+/* enums for accessing
+ * boolean fields of staticfsinfo
+ */
+
+typedef enum {
+	no_trunc,
+	chown_restricted,
+	case_insensitive,
+	case_preserving,
+	link_support,
+	symlink_support,
+	lock_support,
+	lock_support_owner,
+	lock_support_async_block,
+	named_attr,
+	unique_handles,
+	cansettime,
+	homogenous,
+	auth_exportpath_xdev,
+	dirs_have_sticky_bit,
+	pnfs_supported
+} fsal_fsinfo_options_t;
+	
 struct fsal_staticfsinfo_t
 {
 
@@ -858,6 +885,7 @@ struct fsal_staticfsinfo_t
                                                ds_addr_body XDR
                                                stream */
 #endif                                     /* _USE_FSALMDS */
+  fsal_boolean_t dirs_have_sticky_bit; /**< fsal does bsd/posix "sticky bit" */
 
 };
 
