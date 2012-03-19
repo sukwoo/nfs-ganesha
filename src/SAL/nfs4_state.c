@@ -84,13 +84,7 @@ int state_conflict(state_t      * pstate,
       return FALSE;               /* STATE_NONE conflicts with nobody */
 
     case STATE_TYPE_SHARE:
-      if(pstate->state_type == STATE_TYPE_SHARE)
-        {
-          if((pstate->state_data.share.share_access & pstate_data->share.share_deny) ||
-             (pstate->state_data.share.share_deny & pstate_data->share.share_access))
-            return TRUE;
-        }
-      return FALSE;
+      return FALSE;              /* share conflict is managed in the NFS request */
 
     case STATE_TYPE_LOCK:
       return FALSE;              /* lock conflict is managed in the NFS request */

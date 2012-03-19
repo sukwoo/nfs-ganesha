@@ -551,6 +551,10 @@ cache_entry_t *cache_inode_new_entry(cache_inode_fsal_data_t   * pfsdata,
       pentry->object.file.pentry_parent_open = NULL;
 #endif
 
+      /* Initialize the union of share states of this file. */
+      pentry->object.file.share_state.share_access = 0;
+      pentry->object.file.share_state.share_deny = 0;
+
       break;
 
     case DIRECTORY:
