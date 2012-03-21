@@ -723,6 +723,13 @@ fsal_status_t FSAL_lock_op( fsal_file_t       * p_file_descriptor,   /* IN */
                             fsal_lock_param_t * conflicting_lock     /* OUT */
                             );
 
+fsal_status_t FSAL_share_op( fsal_file_t       * p_file_descriptor,   /* IN */
+                             fsal_handle_t     * p_filehandle,        /* IN */
+                             fsal_op_context_t * p_context,           /* IN */
+                             void              * p_owner,             /* IN (opaque to FSAL) */
+                             fsal_share_param_t  request_share        /* IN */
+                             );
+
 /* FSAL_UP functions */
 /* These structs are defined here because including fsal_up.h causes
  * preprocessor issues. */
@@ -1438,6 +1445,12 @@ typedef struct fsal_functions__
                                  fsal_lock_op_t            lock_op,             /* IN */
                                  fsal_lock_param_t         request_lock,        /* IN */
                                  fsal_lock_param_t       * conflicting_lock     /* OUT */ );
+
+  fsal_status_t (*fsal_share_op)( fsal_file_t            * p_file_descriptor,   /* IN */
+                                  fsal_handle_t          * p_filehandle,        /* IN */
+                                  fsal_op_context_t      * p_context,           /* IN */
+                                  void                   * p_owner,             /* IN (opaque to FSAL) */
+                                  fsal_share_param_t       request_share        /* IN */ );
 
   /* get fileno */
   unsigned int (*fsal_getfileno) (fsal_file_t *);

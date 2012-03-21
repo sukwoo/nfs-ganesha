@@ -93,7 +93,9 @@ static fsal_staticfsinfo_t default_gpfs_info = {
   0,                            /* default umask */
   0,                            /* cross junctions */
   0400,                         /* default access rights for xattrs: root=RW, owner=R */
-  0                             /* default access check support in FSAL */
+  0,                            /* default access check support in FSAL */
+  1,                            /* default share reservation support in FSAL */
+  0                             /* default share reservation support with open owners in FSAL */
 };
 
 /* variables for limiting the calls to the filesystem */
@@ -404,6 +406,10 @@ fsal_status_t fsal_internal_init_global(fsal_init_info_t * fsal_info,
   SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, auth_exportpath_xdev);
 
   SET_BITMAP_PARAM(global_fs_info, fs_common_info, xattr_access_rights);
+
+  SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, accesscheck_support);
+  SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, share_support);
+  SET_BOOLEAN_PARAM(global_fs_info, fs_common_info, share_support_owner);
 
   LogFullDebug(COMPONENT_FSAL,
                "Supported attributes constant = 0x%llX.",
