@@ -872,6 +872,10 @@ int nfs41_op_write(struct nfs_argop4 *op,       /* [IN] NFS4 OP arguments */
                    compound_data_t * data,      /* [IN] current data for the compound request */
                    struct nfs_resop4 *resp);    /* [OUT] NFS4 OP results */
 
+int nfs41_op_open_downgrade(struct nfs_argop4 *op,       /* [IN] NFS4 OP arguments */
+                            compound_data_t * data,      /* [IN] current data for the compound request */
+                            struct nfs_resop4 *resp);    /* [OUT] NFS4 OP results */
+
 #endif                          /* _USE_NFS4_1 */
 
 /* Available operations on pseudo fs */
@@ -1366,6 +1370,7 @@ void nfs41_op_lock_CopyRes(LOCK4res * resp_dst, LOCK4res * resp_src);
 void nfs41_op_locku_CopyRes(LOCKU4res * resp_dst, LOCKU4res * resp_src);
 void nfs41_op_open_CopyRes(OPEN4res * resp_dst, OPEN4res * resp_src);
 void nfs41_op_open_confirm_CopyRes(OPEN_CONFIRM4res * resp_dst, OPEN_CONFIRM4res * resp_src);
+void nfs41_op_open_downgrade_Free(OPEN_DOWNGRADE4res * resp);
 void nfs41_op_open_downgrade_CopyRes(OPEN_DOWNGRADE4res * resp_dst, OPEN_DOWNGRADE4res * resp_src);
 #endif                          /* _USE_NFS4_1 */
 

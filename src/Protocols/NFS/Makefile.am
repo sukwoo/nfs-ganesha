@@ -118,7 +118,8 @@ libnfsproto_la_SOURCES += nfs41_op_exchange_id.c      \
                           nfs41_op_sequence.c         \
                           nfs41_op_set_ssv.c          \
                           nfs41_op_test_stateid.c     \
-                          nfs41_op_write.c
+                          nfs41_op_write.c            \
+                          nfs41_op_open_downgrade.c
 endif
 
 

@@ -290,6 +290,13 @@ struct cache_inode_dir_entry__
     uint64_t fsal_cookie;
 };
 
+/* The union of share reservation state for this object. */
+typedef struct cache_inode_share__
+{
+  unsigned int share_access;
+  unsigned int share_deny;
+} cache_inode_share_t;
+
 struct cache_entry_t
 {
   cache_inode_policy_t  policy ;                          /**< The current cache policy for this entry               */
@@ -308,6 +315,7 @@ struct cache_entry_t
       struct glist_head lock_list;                                   /**< Pointers for lock list                               */
       pthread_mutex_t lock_list_mutex;                               /**< Mutex to protect lock list                           */
       cache_inode_unstable_data_t unstable_data;                     /**< Unstable data, for use with WRITE/COMMIT             */
+      cache_inode_share_t share_state;
     } file;                                   /**< file related filed     */
 
     struct cache_inode_symlink__ *symlink;     /**< symlink related field  */

@@ -684,6 +684,9 @@ fsal_status_t COMMON_SetDefault_FS_common_parameter(fsal_parameter_t * out_param
   FSAL_SET_INIT_DEFAULT(out_parameter->fs_common_info, umask);
   FSAL_SET_INIT_DEFAULT(out_parameter->fs_common_info, auth_exportpath_xdev);
   FSAL_SET_INIT_DEFAULT(out_parameter->fs_common_info, xattr_access_rights);
+  FSAL_SET_INIT_DEFAULT(out_parameter->fs_common_info, accesscheck_support);
+  FSAL_SET_INIT_DEFAULT(out_parameter->fs_common_info, share_support);
+  FSAL_SET_INIT_DEFAULT(out_parameter->fs_common_info, share_support_owner);
 
   ReturnCode(ERR_FSAL_NO_ERROR, 0);
 
