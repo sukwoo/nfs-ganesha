@@ -412,6 +412,7 @@ cache_inode_status_t cache_inode_rdwr(cache_entry_t * pentry,
 #else
                   FSAL_close(&(pentry->object.file.open_fd.fd));
 #endif
+                  pentry->object.file.open_fd.fileno = 0;
 
                   *pstatus = cache_inode_error_convert(fsal_status);
                 }
