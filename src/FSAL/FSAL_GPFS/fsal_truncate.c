@@ -74,8 +74,8 @@ fsal_status_t GPFSFSAL_truncate(fsal_handle_t * p_filehandle,       /* IN */
     )
 {
 
-  int rc, errsv;
-  int fd;
+  int errsv, rc = 0;
+  int fd = 0;
   gpfsfsal_file_t *file_desc = (gpfsfsal_file_t *)file_descriptor;
   fsal_status_t st;
 
@@ -86,24 +86,33 @@ fsal_status_t GPFSFSAL_truncate(fsal_handle_t * p_filehandle,       /* IN */
     Return(ERR_FSAL_FAULT, 0, INDEX_FSAL_truncate);
 
   /* get the path of the file and its handle */
-  if (file_desc)
-    fd = file_desc->fd;
-  else
+  if (file_desc && file_desc->fd != 0)
+    {
+      fd = file_desc->fd;
+      TakeTokenFSCall();
+      rc = ftruncate(fd, length);
+      errsv = errno;
+      ReleaseTokenFSCall();
+    }
+
+  /* either the fd passed in was 0, or invalid */
+  if (rc || fd == 0)
     {
       TakeTokenFSCall();
       st = fsal_internal_handle2fd(p_context, p_filehandle, &fd, O_RDWR);
       ReleaseTokenFSCall();
+
+      /* Executes the POSIX truncate operation */
+
+      TakeTokenFSCall();
+      rc = ftruncate(fd, length);
+      errsv = errno;
+      ReleaseTokenFSCall();
+
+      close(fd);
     }
 
-  /* Executes the POSIX truncate operation */
 
-  TakeTokenFSCall();
-  rc = ftruncate(fd, length);
-  errsv = errno;
-  ReleaseTokenFSCall();
-
-  if (!file_desc)
-    close(fd);
   /* convert return code */
   if(rc)
     {
