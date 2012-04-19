@@ -738,6 +738,13 @@ fsal_status_t FSAL_lock_op( fsal_file_t       * p_file_descriptor,   /* IN */
                             fsal_lock_param_t * conflicting_lock     /* OUT */
                             );
 
+fsal_status_t FSAL_share_op( fsal_file_t       * p_file_descriptor,   /* IN */
+                             fsal_handle_t     * p_filehandle,        /* IN */
+                             fsal_op_context_t * p_context,           /* IN */
+                             void              * p_owner,             /* IN (opaque to FSAL) */
+                             fsal_share_param_t  request_share        /* IN */
+                             );
+
 /* FSAL_UP functions */
 /* These structs are defined here because including fsal_up.h causes
  * preprocessor issues. */
@@ -1260,7 +1267,7 @@ typedef struct fsal_functions__
                                   fsal_quota_t * pquota);       /* OUT */
 
   /* FSAL_check_quota */
-  fsal_status_t(*fsal_check_quota)( fsal_path_t * pfsal_path,  /* IN */
+  fsal_status_t(*fsal_check_quota)( char * pfsal_path,  /* IN */
                                     fsal_quota_type_t   quota_type,
                                     fsal_uid_t fsal_uid);      /* IN */
 
@@ -1465,6 +1472,12 @@ typedef struct fsal_functions__
                                     fsal_count_t * peventfound,                 /* OUT */
                                   struct fsal_up_event_bus_context_t_ * pupebcontext /* IN */ );
 #endif /* _USE_FSAL_UP */
+
+  fsal_status_t (*fsal_share_op)( fsal_file_t            * p_file_descriptor,   /* IN */
+                                  fsal_handle_t          * p_filehandle,        /* IN */
+                                  fsal_op_context_t      * p_context,           /* IN */
+                                  void                   * p_owner,             /* IN (opaque to FSAL) */
+                                  fsal_share_param_t       request_share        /* IN */ );
 } fsal_functions_t;
 
 /* Structure allow assignement, char[<n>] do not */

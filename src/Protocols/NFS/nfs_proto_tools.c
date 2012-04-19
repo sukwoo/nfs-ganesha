@@ -1347,15 +1347,31 @@ int nfs4_FSALattr_To_Fattr(exportlist_t * pexport,
           op_attr_success = 1;
           break;
 
+          /* The following MAXREAD-MAXWRITE code establishes these semantics: 
+           *  a. If you set the MaxWrite and MaxRead defaults in an export file
+           *  they apply. 
+           *  b. If you set the MaxWrite and MaxRead defaults in the main.conf
+           *  file they apply unless overwritten by an export file setting. 
+           *  c. If no settings are present in the export file or the main.conf
+           *  file then the defaults values in the FSAL apply. 
+           */
+
         case FATTR4_MAXREAD:
-          maxread = nfs_htonl64((fattr4_maxread) pstaticinfo->maxread);
+          if ( ((pexport->options & EXPORT_OPTION_MAXREAD) == EXPORT_OPTION_MAXREAD ))
+            maxread = nfs_htonl64((fattr4_maxread) pexport->MaxRead );
+          else
+            maxread = nfs_htonl64((fattr4_maxread) pstaticinfo->maxread);
+
           memcpy((char *)(attrvalsBuffer + LastOffset), &maxread, sizeof(fattr4_maxread));
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
           op_attr_success = 1;
           break;
 
         case FATTR4_MAXWRITE:
-          maxwrite = nfs_htonl64((fattr4_maxwrite) pstaticinfo->maxwrite);
+          if ( ((pexport->options & EXPORT_OPTION_MAXWRITE) == EXPORT_OPTION_MAXWRITE ))
+            maxwrite = nfs_htonl64((fattr4_maxwrite) pexport->MaxWrite );
+          else
+            maxwrite = nfs_htonl64((fattr4_maxwrite) pstaticinfo->maxwrite);
           memcpy((char *)(attrvalsBuffer + LastOffset), &maxwrite,
                  sizeof(fattr4_maxwrite));
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
@@ -3425,7 +3441,7 @@ int nfs4_Fattr_To_FSAL_attr(fsal_attrib_list_t * pFSAL_attr, fattr4 * Fattr)
           pFSAL_attr->asked_attributes |= FSAL_ATTR_MODE;
           LastOffset += fattr4tab[attribute_to_set].size_fattr4;
           LogFullDebug(COMPONENT_NFS_V4,
-                       "      SATTR: On voit le mode 0%o", pFSAL_attr->mode);
+                       "      SATTR: We see the mode 0%o", pFSAL_attr->mode);
           break;
 
         case FATTR4_OWNER:
@@ -3450,9 +3466,9 @@ int nfs4_Fattr_To_FSAL_attr(fsal_attrib_list_t * pFSAL_attr, fattr4 * Fattr)
           pFSAL_attr->asked_attributes |= FSAL_ATTR_OWNER;
 
           LogFullDebug(COMPONENT_NFS_V4,
-                       "      SATTR: On voit le owner %s len = %d", buffer, len);
+                       "      SATTR: We see the owner %s len = %d", buffer, len);
           LogFullDebug(COMPONENT_NFS_V4,
-                       "      SATTR: On voit le owner %d", pFSAL_attr->owner);
+                       "      SATTR: We see the owner %d", pFSAL_attr->owner);
           break;
 
         case FATTR4_OWNER_GROUP:
@@ -3477,9 +3493,9 @@ int nfs4_Fattr_To_FSAL_attr(fsal_attrib_list_t * pFSAL_attr, fattr4 * Fattr)
           pFSAL_attr->asked_attributes |= FSAL_ATTR_GROUP;
 
           LogFullDebug(COMPONENT_NFS_V4,
-                       "      SATTR: On voit le owner_group %s len = %d", buffer, len);
+                       "      SATTR: We see the owner_group %s len = %d", buffer, len);
           LogFullDebug(COMPONENT_NFS_V4,
-                       "      SATTR: On voit le owner_group %d", pFSAL_attr->group);
+                       "      SATTR: We see the owner_group %d", pFSAL_attr->group);
           break;
 
         case FATTR4_CHANGE:
